@@ -25,7 +25,7 @@ def create_adk_agent(
     Factory function to create ADK agents with consistent configuration
     
     Args:
-        name: Agent name
+        name: Agent name (will be converted to valid identifier)
         instruction: System instruction/prompt for the agent
         description: Brief description of agent's role
         tools: List of tool functions to equip the agent with
@@ -35,10 +35,13 @@ def create_adk_agent(
     Returns:
         Configured LlmAgent instance
     """
+    # Convert name to valid Python identifier (ADK requirement)
+    valid_name = name.lower().replace(" ", "_").replace("-", "_")
+    
     logger = logging.getLogger(name)
     
     # Get model configuration
-    agent_key = name.lower().replace(" ", "_").replace("agent", "").strip("_")
+    agent_key = valid_name.replace("agent", "").strip("_")
     config = Settings.AGENT_CONFIG.get(
         agent_key,
         Settings.AGENT_CONFIG.get("coordinator", {})
@@ -46,11 +49,11 @@ def create_adk_agent(
     
     model = model_name or config.get("model", "gemini-2.0-flash-exp")
     
-    logger.info(f"Creating ADK agent: {name} with model {model}")
+    logger.info(f"Creating ADK agent: {valid_name} with model {model}")
     
-    # Create ADK agent
+    # Create ADK agent with valid identifier name
     agent = LlmAgent(
-        name=name,
+        name=valid_name,
         model=model,
         instruction=instruction,
         description=description,
@@ -58,7 +61,7 @@ def create_adk_agent(
         sub_agents=sub_agents or []
     )
     
-    logger.info(f"{name} initialized with {len(tools or [])} tools and {len(sub_agents or [])} sub-agents")
+    logger.info(f"{valid_name} initialized with {len(tools or [])} tools and {len(sub_agents or [])} sub-agents")
     
     return agent
 

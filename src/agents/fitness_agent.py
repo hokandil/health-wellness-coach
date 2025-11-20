@@ -19,7 +19,7 @@ def create_fitness_agent():
     tools = [
         fitness_tools.assess_fitness_level,
         fitness_tools.generate_workout_plan,
-        fitness_tools.calculate_exercise_calories
+        fitness_tools.calculate_calories_burned
     ]
     
     agent = create_adk_agent(
