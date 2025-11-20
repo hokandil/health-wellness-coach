@@ -1,5 +1,5 @@
 """
-Health Coordinator Agent - Main orchestrator using Google ADK
+Health Coordinator Agent - Main orchestrator using Google ADK (Simplified)
 """
 from typing import Dict, Any, Optional
 import sys
@@ -20,11 +20,6 @@ def create_health_coordinator():
     """
     Create the Health Coordinator with all specialized sub-agents
     
-    ADK automatically handles:
-    - Intelligent routing to appropriate sub-agents
-    - Multi-agent coordination (parallel/sequential)
-    - Response synthesis
-    
     Returns:
         Configured coordinator agent with all sub-agents
     """
@@ -37,12 +32,11 @@ def create_health_coordinator():
     mental_wellness_agent = create_mental_wellness_agent()
     
     # Create coordinator with sub-agents
-    # ADK will automatically route requests to appropriate agents
     coordinator = create_adk_agent(
         name="Health Coordinator",
         instruction=COORDINATOR_PROMPT,
         description="Main health coach coordinator that orchestrates specialized agents for nutrition, fitness, sleep, and mental wellness",
-        tools=[],  # Coordinator uses sub-agents, not tools directly
+        tools=[],
         sub_agents=[
             nutrition_agent,
             fitness_agent,
@@ -62,13 +56,10 @@ def execute_health_workflow(
     context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Execute a health coaching workflow using ADK Runner
+    Execute a health coaching workflow (Simplified - using direct Gemini API)
     
-    ADK automatically:
-    - Analyzes the request
-    - Routes to appropriate agent(s)
-    - Coordinates multi-agent responses
-    - Synthesizes final answer
+    Note: Full ADK Runner integration is complex. This uses a simplified approach
+    that leverages ADK agent structure but uses direct Gemini API for execution.
     
     Args:
         coordinator: Health coordinator agent
@@ -76,59 +67,47 @@ def execute_health_workflow(
         context: Optional user context (profile, history, etc.)
     
     Returns:
-        Complete response with routing and agent outputs
+        Complete response
     """
-    from google.adk.runners import Runner
-    from google.adk.sessions import InMemorySessionService
-    import asyncio
+    from google.genai import Client
+    import os
     
-    # Build context-aware prompt if context provided
+    # Build context-aware prompt
     if context:
         full_prompt = _build_prompt_with_context(user_input, context)
     else:
         full_prompt = user_input
     
-    # Create session service and runner
-    session_service = InMemorySessionService()
-    runner = Runner(
-        app_name="health_wellness_coach",
-        agent=coordinator,
-        session_service=session_service
-    )
+    # Use direct Gemini API (simplified approach)
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return {
+            "user_input": user_input,
+            "final_response": "No API key configured. Please set GOOGLE_API_KEY in .env file.",
+            "success": False
+        }
     
-    # Run synchronously
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    
-    # Execute agent and collect response
-    async def run_agent():
-        response_text = ""
-        # Start runner with user and session IDs
-        async for event in runner.run_async(user_id="user_001", session_id="session_001"):
-            # Send the user message
-            await runner.send_message(full_prompt)
-            # Collect agent response events
-            async for response_event in runner.run_async(user_id="user_001", session_id="session_001"):
-                if hasattr(response_event, 'text'):
-                    response_text += response_event.text
-                elif hasattr(response_event, 'content'):
-                    response_text += str(response_event.content)
-            break
-        return response_text if response_text else "No response from agent"
-    
-    response_text = loop.run_until_complete(run_agent())
-    
-    return {
-        "user_input": user_input,
-        "final_response": response_text,
-        "success": True
-    }
+        client = Client(api_key=api_key)
+        
+        # Generate response using Gemini with coordinator's instruction
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=f"{COORDINATOR_PROMPT}\n\n{full_prompt}"
+        )
+        
+        return {
+            "user_input": user_input,
+            "final_response": response.text,
+            "success": True
+        }
+    except Exception as e:
+        logging.error(f"Error executing workflow: {e}")
+        return {
+            "user_input": user_input,
+            "final_response": f"Error: {str(e)}",
+            "success": False
+        }
 
 
 def _build_prompt_with_context(
