@@ -120,7 +120,7 @@ def _build_prompt_with_context(
     if context:
         prompt_parts.append("CONTEXT:")
         
-        if "user_profile" in context:
+        if "user_profile" in context and context["user_profile"] is not None:
             profile = context["user_profile"]
             prompt_parts.append(f"""
 User Profile:
@@ -131,8 +131,13 @@ User Profile:
 - Restrictions: {', '.join(profile.get('restrictions', []))}
 """)
         
-        if "recent_history" in context:
-            prompt_parts.append(f"\nRecent History:\n{context['recent_history']}")
+        if "conversation_history" in context and context["conversation_history"]:
+            history = context["conversation_history"]
+            prompt_parts.append("\nRecent Conversation:")
+            for exchange in history[-3:]:  # Last 3 exchanges
+                role = exchange.get("role", "unknown")
+                content = exchange.get("content", "")
+                prompt_parts.append(f"{role.title()}: {content[:100]}...")
         
         prompt_parts.append("\n---\n")
     
