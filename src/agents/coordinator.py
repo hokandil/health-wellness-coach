@@ -1,5 +1,5 @@
 """
-Health Coordinator Agent - Main orchestrator using Google ADK (Simplified)
+Health Coordinator Agent - Main orchestrator using Bytez API
 """
 from typing import Dict, Any, Optional
 import sys
@@ -7,47 +7,25 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.agents.base_agent import create_adk_agent
-from src.agents.nutrition_agent import create_nutrition_agent
-from src.agents.fitness_agent import create_fitness_agent
-from src.agents.sleep_agent import create_sleep_agent
-from src.agents.mental_wellness_agent import create_mental_wellness_agent
 from config.prompts import COORDINATOR_PROMPT
 import logging
 
 
 def create_health_coordinator():
     """
-    Create the Health Coordinator with all specialized sub-agents
+    Create the Health Coordinator (simplified for Bytez API)
     
     Returns:
-        Configured coordinator agent with all sub-agents
+        Coordinator configuration
     """
     logger = logging.getLogger("HealthCoordinator")
+    logger.info("Health Coordinator initialized for Bytez API")
     
-    # Create all specialized agents
-    nutrition_agent = create_nutrition_agent()
-    fitness_agent = create_fitness_agent()
-    sleep_agent = create_sleep_agent()
-    mental_wellness_agent = create_mental_wellness_agent()
-    
-    # Create coordinator with sub-agents
-    coordinator = create_adk_agent(
-        name="Health Coordinator",
-        instruction=COORDINATOR_PROMPT,
-        description="Main health coach coordinator that orchestrates specialized agents for nutrition, fitness, sleep, and mental wellness",
-        tools=[],
-        sub_agents=[
-            nutrition_agent,
-            fitness_agent,
-            sleep_agent,
-            mental_wellness_agent
-        ]
-    )
-    
-    logger.info(f"Health Coordinator initialized with 4 specialized sub-agents")
-    
-    return coordinator
+    return {
+        "name": "health_coordinator",
+        "model": "google/gemini-2.5-flash",
+        "instruction": COORDINATOR_PROMPT
+    }
 
 
 def execute_health_workflow(
@@ -56,10 +34,11 @@ def execute_health_workflow(
     context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Execute a health coaching workflow (Simplified - using direct Gemini API)
+    Execute a health coaching workflow using Bytez or Google API
     
-    Note: Full ADK Runner integration is complex. This uses a simplified approach
-    that leverages ADK agent structure but uses direct Gemini API for execution.
+    Automatically detects which API to use based on MODEL_NAME prefix:
+    - "bytez/" prefix -> Use Bytez API
+    - "google/" prefix -> Use Google API directly
     
     Args:
         coordinator: Health coordinator agent
@@ -69,7 +48,6 @@ def execute_health_workflow(
     Returns:
         Complete response
     """
-    from google.genai import Client
     import os
     
     # Build context-aware prompt
@@ -78,36 +56,145 @@ def execute_health_workflow(
     else:
         full_prompt = user_input
     
-    # Use direct Gemini API (simplified approach)
+    # Get model name from environment
+    model_name = os.getenv("MODEL_NAME", "bytez/google/gemini-2.5-flash")
+    
+    from src.utils.observability import Tracer, log_api_call
+    
+    with Tracer("HealthWorkflow") as tracer:
+        tracer.log_event("input_received", {"length": len(user_input)})
+        
+        try:
+            # Detect API type from model prefix
+            if model_name.startswith("bytez/"):
+                # Use Bytez API
+                result = _execute_with_bytez(model_name, full_prompt, user_input)
+            elif model_name.startswith("google/"):
+                # Use Google API directly
+                result = _execute_with_google(model_name, full_prompt, user_input)
+            else:
+                # Default to Bytez if no prefix
+                result = _execute_with_bytez(f"bytez/{model_name}", full_prompt, user_input)
+            
+            tracer.log_event("execution_complete", {"success": result.get("success", False)})
+            return result
+                
+        except Exception as e:
+            logging.error(f"Error executing workflow: {e}")
+            tracer.log_event("execution_error", {"error": str(e)})
+            return {
+                "user_input": user_input,
+                "final_response": f"I apologize, but I encountered an error. Please try again.",
+                "success": False
+            }
+
+
+def _execute_with_bytez(model_name: str, full_prompt: str, user_input: str) -> Dict[str, Any]:
+    """Execute using Bytez API"""
+    from bytez import Bytez
+    import os
+    from src.utils.observability import log_api_call
+    
+    # Remove "bytez/" prefix for actual model name
+    actual_model = model_name.replace("bytez/", "")
+    
+    # Get API key
+    api_key = os.getenv("BYTEZ_API_KEY")
+    if not api_key:
+        return {
+            "user_input": user_input,
+            "final_response": "No BYTEZ_API_KEY configured. Please set it in your .env file.",
+            "success": False
+        }
+    
+    # Initialize Bytez SDK
+    sdk = Bytez(api_key)
+    model = sdk.model(actual_model)
+    
+    # Prepare messages
+    messages = [
+        {"role": "system", "content": COORDINATOR_PROMPT},
+        {"role": "user", "content": full_prompt}
+    ]
+    
+    # Send to model
+    response = model.run(messages)
+    
+    # Log API call (estimated tokens for now)
+    log_api_call("Bytez", actual_model, len(full_prompt)//4, 0)
+    
+    # Check for error in response object
+    if hasattr(response, 'error') and response.error:
+        logging.error(f"Bytez API error: {response.error}")
+        return {
+            "user_input": user_input,
+            "final_response": f"I apologize, but I encountered an error: {response.error}",
+            "success": False
+        }
+    
+    # Extract content from response
+    output_text = ""
+    if hasattr(response, 'output'):
+        if isinstance(response.output, dict) and 'content' in response.output:
+            output_text = response.output['content']
+        else:
+            output_text = str(response.output)
+    else:
+        # Fallback for tuple unpacking if behavior changes
+        try:
+            output, error = response
+            if error:
+                return {
+                    "user_input": user_input,
+                    "final_response": f"Error: {error}",
+                    "success": False
+                }
+            output_text = output
+        except:
+            output_text = str(response)
+            
+    return {
+        "user_input": user_input,
+        "final_response": output_text,
+        "success": True
+    }
+
+
+def _execute_with_google(model_name: str, full_prompt: str, user_input: str) -> Dict[str, Any]:
+    """Execute using Google API directly"""
+    from google import genai
+    import os
+    from src.utils.observability import log_api_call
+    
+    # Remove "google/" prefix for actual model name
+    actual_model = model_name.replace("google/", "")
+    
+    # Get API key
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         return {
             "user_input": user_input,
-            "final_response": "No API key configured. Please set GOOGLE_API_KEY in .env file.",
+            "final_response": "No GOOGLE_API_KEY configured. Please set it in your .env file.",
             "success": False
         }
     
-    try:
-        client = Client(api_key=api_key)
-        
-        # Generate response using Gemini with coordinator's instruction
-        response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
-            contents=f"{COORDINATOR_PROMPT}\n\n{full_prompt}"
-        )
-        
-        return {
-            "user_input": user_input,
-            "final_response": response.text,
-            "success": True
-        }
-    except Exception as e:
-        logging.error(f"Error executing workflow: {e}")
-        return {
-            "user_input": user_input,
-            "final_response": f"Error: {str(e)}",
-            "success": False
-        }
+    # Initialize Google client
+    client = genai.Client(api_key=api_key)
+    
+    # Generate response
+    response = client.models.generate_content(
+        model=actual_model,
+        contents=f"{COORDINATOR_PROMPT}\n\n{full_prompt}"
+    )
+    
+    # Log API call
+    log_api_call("Google", actual_model, len(full_prompt)//4, len(response.text)//4)
+    
+    return {
+        "user_input": user_input,
+        "final_response": response.text,
+        "success": True
+    }
 
 
 def _build_prompt_with_context(

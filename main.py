@@ -28,27 +28,23 @@ def main():
     """Interactive Health Coach - Continuous Conversation Mode"""
     print("\n" + "=" * 60)
     print("   🏥 PERSONAL HEALTH & WELLNESS COACH")
-    print("   AI Multi-Agent System (Powered by Google ADK)")
+    print("   AI Multi-Agent System (Powered by Bytez API)")
     print("=" * 60)
     
-    # Check API key
-    if not Settings.GOOGLE_API_KEY:
-        print("\n⚠️  WARNING: GOOGLE_API_KEY not set!")
-        print("Please create a .env file with your Gemini API key.")
-        print("Copy .env.example to .env and add your key.\n")
-        return
+    # Check API key (Bytez or fallback to hardcoded)
+    bytez_key = Settings.GOOGLE_API_KEY or "e8ba2ca51505f0fe9fe84e880323cf09"
     
     print("\n🏥 Initializing your AI Health Coach...")
     print("-" * 60)
     
-    # Initialize coordinator with all sub-agents
+    # Initialize coordinator (simplified for Bytez)
     coordinator = create_health_coordinator()
     
     # Initialize memory bank
     memory_bank = MemoryBank()
     
     print("✅ Health Coach ready!")
-    print(f"   - Specialized Agents: 4 (Nutrition, Fitness, Sleep, Mental Wellness)")
+    print(f"   - AI Model: Gemini 2.5 Flash (via Bytez)")
     print(f"   - Memory Bank: Active")
     print("=" * 60)
     
