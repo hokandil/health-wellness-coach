@@ -7,27 +7,41 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.agents.base_agent import BaseAgent
+from src.agents.base_agent import create_adk_agent
 from config.prompts import MENTAL_WELLNESS_AGENT_PROMPT
 
 
-class MentalWellnessAgent(BaseAgent):
-    """Mental wellness specialist agent"""
+def create_mental_wellness_agent():
+    """Create and configure the Mental Wellness Agent using Google ADK"""
     
-    def __init__(self):
-        super().__init__(
-            name="Mental Wellness Agent",
-            system_prompt=MENTAL_WELLNESS_AGENT_PROMPT,
-            tools=[]  # Primarily conversational
-        )
+    # Mental wellness agent is primarily conversational, no specific tools
+    agent = create_adk_agent(
+        name="Mental Wellness Agent",
+        instruction=MENTAL_WELLNESS_AGENT_PROMPT,
+        description="Specialist in motivation, emotional support, and mental health guidance",
+        tools=[]  # Primarily conversational
+    )
     
-    def provide_motivation(
-        self,
-        user_context: Dict[str, Any],
-        situation: str = "general"
-    ) -> str:
-        """Provide personalized motivation"""
-        prompt = f"""Provide encouraging, personalized motivation for this user.
+    return agent
+
+
+def provide_motivation_workflow(
+    agent,
+    user_context: Dict[str, Any],
+    situation: str = "general"
+) -> Dict[str, Any]:
+    """
+    Provide personalized motivation and support
+    
+    Args:
+        agent: Mental wellness agent instance
+        user_context: User's current context and progress
+        situation: Specific situation requiring motivation
+    
+    Returns:
+        Motivational message and support
+    """
+    prompt = f"""Provide encouraging, personalized motivation for this user.
 
 SITUATION: {situation}
 
@@ -37,9 +51,15 @@ USER CONTEXT:
 - Recent wins: {user_context.get('recent_wins', 'None')}
 - Progress: {user_context.get('progress_summary', 'Just starting')}
 
-Create a warm, genuine message that acknowledges their effort, provides perspective, offers concrete next steps, and ends with encouragement."""
+Create a warm, genuine message that:
+1. Acknowledges their effort and progress
+2. Provides perspective on challenges
+3. Offers concrete next steps
+4. Ends with encouragement"""
 
-        if self.model:
-            response = self.model.generate_content(prompt)
-            return response.text
-        return "Keep up the great work!"
+    response = agent.run(prompt)
+    
+    return {
+        "response": response,
+        "success": True
+    }

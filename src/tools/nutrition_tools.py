@@ -1,9 +1,11 @@
 """
 Nutrition-related tools for meal planning and macro calculations
+
+These tools are used by the Nutrition Agent via Google ADK.
 """
-import google.generativeai as genai
 from typing import Dict, List, Any
 import json
+import os
 
 
 def calculate_daily_calories(
@@ -134,8 +136,20 @@ def analyze_meal_macros(meal_description: str, api_key: str = None) -> Dict[str,
     Returns:
         Estimated macros for the meal
     """
-    if api_key:
-        genai.configure(api_key=api_key)
+    # Use ADK-compatible model initialization
+    from google.genai import Client
+    
+    api_key = api_key or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return {
+            "error": "No API key configured",
+            "total_calories": 0,
+            "protein_grams": 0,
+            "carbs_grams": 0,
+            "fat_grams": 0
+        }
+    
+    client = Client(api_key=api_key)
     
     prompt = f"""Analyze the following meal and provide nutritional breakdown:
 
@@ -153,8 +167,10 @@ Be realistic with portion sizes. If not specified, assume standard portions.
 Return ONLY the JSON, no other text."""
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=prompt
+        )
         
         # Extract JSON from response
         result_text = response.text.strip()
@@ -199,8 +215,16 @@ def generate_meal_plan(
     Returns:
         Complete meal plan with recipes
     """
-    if api_key:
-        genai.configure(api_key=api_key)
+    from google.genai import Client
+    
+    api_key = api_key or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return {
+            "error": "No API key configured",
+            "days": []
+        }
+    
+    client = Client(api_key=api_key)
     
     dietary_restrictions = dietary_restrictions or []
     liked_foods = liked_foods or []
@@ -264,8 +288,10 @@ Return JSON with this structure:
 Return ONLY valid JSON."""
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model='gemini-2.0-flash-exp',
+            contents=prompt
+        )
         
         result_text = response.text.strip()
         if result_text.startswith("```json"):
@@ -279,28 +305,3 @@ Return ONLY valid JSON."""
             "error": f"Could not generate meal plan: {str(e)}",
             "days": []
         }
-
-
-# Tool registration metadata
-NUTRITION_TOOLS = [
-    {
-        "name": "calculate_daily_calories",
-        "function": calculate_daily_calories,
-        "description": "Calculate BMR, TDEE, and calorie targets based on user demographics and activity level"
-    },
-    {
-        "name": "calculate_macro_targets",
-        "function": calculate_macro_targets,
-        "description": "Calculate optimal macronutrient distribution (protein, carbs, fats) based on goals"
-    },
-    {
-        "name": "analyze_meal_macros",
-        "function": analyze_meal_macros,
-        "description": "Analyze nutritional content of a meal from natural language description"
-    },
-    {
-        "name": "generate_meal_plan",
-        "function": generate_meal_plan,
-        "description": "Generate personalized meal plan with recipes based on targets and preferences"
-    }
-]

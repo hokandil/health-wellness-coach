@@ -1,5 +1,7 @@
 """
 Sleep-related tools for sleep quality analysis and recommendations
+
+These tools are used by the Sleep Agent via Google ADK.
 """
 from typing import Dict, List, Any
 from datetime import datetime, timedelta
@@ -212,23 +214,3 @@ def analyze_sleep_patterns(
         "insights": insights if insights else ["Sleep patterns look healthy!"],
         "recommendations": recommendations if recommendations else ["Maintain current sleep habits"]
     }
-
-
-# Tool registration metadata
-SLEEP_TOOLS = [
-    {
-        "name": "assess_sleep_quality",
-        "function": assess_sleep_quality,
-        "description": "Assess sleep quality based on duration, continuity, and sleep hygiene factors"
-    },
-    {
-        "name": "recommend_sleep_schedule",
-        "function": recommend_sleep_schedule,
-        "description": "Calculate optimal bedtime based on desired wake time and sleep cycles"
-    },
-    {
-        "name": "analyze_sleep_patterns",
-        "function": analyze_sleep_patterns,
-        "description": "Analyze sleep patterns over time to identify trends and issues"
-    }
-]

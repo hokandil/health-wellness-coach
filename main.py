@@ -1,26 +1,23 @@
 """
-Personal Health & Wellness Coach - Main Demo Application
+Personal Health & Wellness Coach - Main Demo Application (Google ADK)
 
-This demonstrates the multi-agent health coaching system with:
+This demonstrates the multi-agent health coaching system built with Google ADK:
 - 4 specialized agents (Nutrition, Fitness, Sleep, Mental Wellness)
-- Health Coordinator for orchestration
+- Health Coordinator for intelligent orchestration
 - Memory Bank for user profiles
-- Multi-agent workflows (parallel, sequential, single)
+- Automatic multi-agent coordination via ADK
 """
 
 import sys
 from pathlib import Path
 import logging
+import os
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.append(str(project_root))
 
-from src.agents.coordinator import HealthCoordinator
-from src.agents.nutrition_agent import NutritionAgent
-from src.agents.fitness_agent import FitnessAgent
-from src.agents.sleep_agent import SleepAgent
-from src.agents.mental_wellness_agent import MentalWellnessAgent
+from src.agents.coordinator import create_health_coordinator, execute_health_workflow
 from src.memory.memory_bank import MemoryBank
 from config.settings import Settings
 
@@ -33,8 +30,8 @@ logger = logging.getLogger(__name__)
 
 
 def initialize_system():
-    """Initialize the health coach system with all agents"""
-    print("🏥 Initializing Personal Health & Wellness Coach...")
+    """Initialize the health coach system with ADK"""
+    print("🏥 Initializing Personal Health & Wellness Coach (Google ADK)...")
     print("=" * 60)
     
     # Check API key
@@ -44,26 +41,15 @@ def initialize_system():
         print("Copy .env.example to .env and add your key.\n")
         return None, None
     
-    # Initialize specialized agents
-    nutrition_agent = NutritionAgent()
-    fitness_agent = FitnessAgent()
-    sleep_agent = SleepAgent()
-    mental_wellness_agent = MentalWellnessAgent()
-    
-    # Initialize coordinator with sub-agents
-    coordinator = HealthCoordinator(sub_agents={
-        "nutrition_agent": nutrition_agent,
-        "fitness_agent": fitness_agent,
-        "sleep_agent": sleep_agent,
-        "mental_wellness_agent": mental_wellness_agent
-    })
+    # Initialize coordinator with all sub-agents (ADK handles everything)
+    coordinator = create_health_coordinator()
     
     # Initialize memory bank
     memory_bank = MemoryBank()
     
     print("✅ System initialized successfully!")
-    print(f"   - Coordinator: {coordinator.name}")
-    print(f"   - Specialized Agents: {len(coordinator.sub_agents)}")
+    print(f"   - Health Coordinator: Active (ADK Multi-Agent)")
+    print(f"   - Specialized Agents: 4 (Nutrition, Fitness, Sleep, Mental Wellness)")
     print(f"   - Memory Bank: Active")
     print("=" * 60)
     
@@ -105,25 +91,23 @@ def demo_scenario_1_new_user():
     user_input = "Hi! I want to lose 15 pounds in 3 months. Can you help me create a plan?"
     
     print(f"\n👤 User: {user_input}")
-    print("\n🤖 Processing with Health Coordinator...")
+    print("\n🤖 Processing with ADK Health Coordinator...")
+    print("   (ADK automatically routes to appropriate agents)\n")
     
-    # Execute workflow
-    result = coordinator.execute_workflow(
+    # Execute workflow - ADK handles routing and coordination
+    result = execute_health_workflow(
+        coordinator=coordinator,
         user_input=user_input,
         context={"user_profile": user_profile}
     )
     
-    print(f"\n📊 Routing Decision:")
-    print(f"   - Primary Agent: {result['routing']['primary_agent']}")
-    print(f"   - Execution Mode: {result['routing']['execution_mode']}")
-    
-    print(f"\n💬 Response:")
+    print(f"💬 Response:")
     print(result['final_response'])
 
 
 def demo_scenario_2_daily_checkin():
-    """Demo: Daily check-in with parallel agent execution"""
-    print("\n📋 DEMO SCENARIO 2: Daily Check-In (Parallel Execution)")
+    """Demo: Daily check-in with ADK automatic coordination"""
+    print("\n📋 DEMO SCENARIO 2: Daily Check-In (ADK Auto-Coordination)")
     print("-" * 60)
     
     coordinator, memory_bank = initialize_system()
@@ -142,15 +126,15 @@ def demo_scenario_2_daily_checkin():
 - Workout scheduled for 6 PM today"""
     
     print(f"\n👤 User: {user_input}")
-    print("\n🤖 Processing with multiple agents in parallel...")
+    print("\n🤖 Processing with ADK (automatic multi-agent coordination)...\n")
     
-    result = coordinator.execute_workflow(
+    result = execute_health_workflow(
+        coordinator=coordinator,
         user_input=user_input,
         context={"user_profile": user_profile}
     )
     
-    print(f"\n📊 Agents Consulted: {list(result['agent_responses'].keys())}")
-    print(f"\n💬 Synthesized Response:")
+    print(f"💬 Synthesized Response:")
     print(result['final_response'])
 
 
@@ -221,8 +205,8 @@ def demo_scenario_3_tool_usage():
 
 
 def interactive_mode():
-    """Interactive chat mode"""
-    print("\n💬 INTERACTIVE MODE")
+    """Interactive chat mode with ADK"""
+    print("\n💬 INTERACTIVE MODE (Google ADK)")
     print("-" * 60)
     
     coordinator, memory_bank = initialize_system()
@@ -232,7 +216,7 @@ def interactive_mode():
     # Try to load existing user profile
     user_profile = memory_bank.get_user_profile("user_001")
     
-    print("\nYou can now chat with your health coach!")
+    print("\nYou can now chat with your AI health coach!")
     print("Type 'quit' to exit, 'profile' to see your profile, 'help' for commands.\n")
     
     while True:
@@ -264,8 +248,9 @@ def interactive_mode():
                 print("   Or just chat naturally with your health coach!\n")
                 continue
             
-            # Process with coordinator
-            result = coordinator.execute_workflow(
+            # Process with ADK coordinator
+            result = execute_health_workflow(
+                coordinator=coordinator,
                 user_input=user_input,
                 context={"user_profile": user_profile} if user_profile else None
             )
@@ -276,6 +261,7 @@ def interactive_mode():
             print("\n\n👋 Goodbye! Stay healthy!")
             break
         except Exception as e:
+            logger.error(f"Error in interactive mode: {e}")
             print(f"\n❌ Error: {e}\n")
 
 
@@ -283,12 +269,12 @@ def main():
     """Main entry point"""
     print("\n" + "=" * 60)
     print("   🏥 PERSONAL HEALTH & WELLNESS COACH")
-    print("   AI Multi-Agent System for Holistic Health Guidance")
+    print("   AI Multi-Agent System (Powered by Google ADK)")
     print("=" * 60)
     
     print("\nAvailable Demos:")
     print("1. New User Onboarding")
-    print("2. Daily Check-In (Multi-Agent Parallel Execution)")
+    print("2. Daily Check-In (ADK Auto-Coordination)")
     print("3. Tool Usage Examples")
     print("4. Interactive Chat Mode")
     print("5. Run All Demos")

@@ -1,8 +1,8 @@
 """
-Base agent class with common functionality
+Base agent utilities for Google ADK
 """
-import google.generativeai as genai
-from typing import Dict, List, Any, Optional
+from google.adk.agents import LlmAgent
+from typing import Dict, List, Any, Optional, Callable
 import sys
 from pathlib import Path
 
@@ -13,131 +13,70 @@ from config.settings import Settings
 import logging
 
 
-class BaseAgent:
-    """Base class for all specialized agents"""
+def create_adk_agent(
+    name: str,
+    instruction: str,
+    description: str,
+    tools: List[Callable] = None,
+    sub_agents: List[LlmAgent] = None,
+    model_name: str = None
+) -> LlmAgent:
+    """
+    Factory function to create ADK agents with consistent configuration
     
-    def __init__(
-        self,
-        name: str,
-        system_prompt: str,
-        tools: List[Dict] = None,
-        model_config: Dict = None
-    ):
-        self.name = name
-        self.system_prompt = system_prompt
-        self.tools = tools or []
-        self.logger = logging.getLogger(name)
-        
-        # Model configuration
-        config = model_config or Settings.AGENT_CONFIG.get(
-            name.lower().replace(" ", "_").replace("agent", "").strip("_"),
-            Settings.AGENT_CONFIG["coordinator"]
-        )
-        
-        # Initialize Gemini model
-        if Settings.GOOGLE_API_KEY:
-            genai.configure(api_key=Settings.GOOGLE_API_KEY)
-            self.model = genai.GenerativeModel(
-                model_name=config["model"],
-                generation_config={
-                    "temperature": config["temperature"],
-                    "max_output_tokens": config["max_tokens"]
-                },
-                system_instruction=system_prompt
-            )
-        else:
-            self.model = None
-            self.logger.warning(f"{self.name}: No API key configured")
-        
-        self.logger.info(f"{self.name} initialized with {len(self.tools)} tools")
+    Args:
+        name: Agent name
+        instruction: System instruction/prompt for the agent
+        description: Brief description of agent's role
+        tools: List of tool functions to equip the agent with
+        sub_agents: List of sub-agents for multi-agent coordination
+        model_name: Gemini model name (defaults to settings)
     
-    def process(
-        self,
-        user_input: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Process user input and return response
-        
-        Args:
-            user_input: User's message or query
-            context: Additional context (user profile, history, etc.)
-        
-        Returns:
-            Agent's response with metadata
-        """
-        if not self.model:
-            return {
-                "agent": self.name,
-                "response": "Agent not configured. Please set GOOGLE_API_KEY in .env file.",
-                "success": False,
-                "error": "No API key"
-            }
-        
-        try:
-            # Build prompt with context
-            full_prompt = self._build_prompt(user_input, context)
-            
-            self.logger.debug(f"Processing: {user_input[:100]}...")
-            
-            # Generate response
-            response = self.model.generate_content(full_prompt)
-            
-            return {
-                "agent": self.name,
-                "response": response.text,
-                "success": True,
-                "metadata": {
-                    "model": self.model.model_name,
-                    "prompt_length": len(full_prompt)
-                }
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Error processing request: {str(e)}")
-            return {
-                "agent": self.name,
-                "response": f"I encountered an error: {str(e)}",
-                "success": False,
-                "error": str(e)
-            }
+    Returns:
+        Configured LlmAgent instance
+    """
+    logger = logging.getLogger(name)
     
-    def _build_prompt(
-        self,
-        user_input: str,
-        context: Optional[Dict[str, Any]] = None
-    ) -> str:
-        """Build complete prompt with context"""
-        prompt_parts = []
-        
-        if context:
-            prompt_parts.append("CONTEXT:")
-            
-            if "user_profile" in context:
-                profile = context["user_profile"]
-                prompt_parts.append(f"""
-User Profile:
-- Age: {profile.get('age', 'N/A')}
-- Gender: {profile.get('gender', 'N/A')}
-- Current Weight: {profile.get('current_weight_kg', 'N/A')}kg
-- Goals: {', '.join(profile.get('goals', []))}
-- Restrictions: {', '.join(profile.get('restrictions', []))}
-""")
-            
-            if "recent_history" in context:
-                prompt_parts.append(f"\nRecent History:\n{context['recent_history']}")
-            
-            prompt_parts.append("\n---\n")
-        
-        prompt_parts.append(f"USER REQUEST:\n{user_input}")
-        
-        return "\n".join(prompt_parts)
+    # Get model configuration
+    agent_key = name.lower().replace(" ", "_").replace("agent", "").strip("_")
+    config = Settings.AGENT_CONFIG.get(
+        agent_key,
+        Settings.AGENT_CONFIG.get("coordinator", {})
+    )
     
-    def call_tool(self, tool_name: str, **kwargs) -> Any:
-        """Execute a tool by name"""
-        for tool in self.tools:
-            if tool["name"] == tool_name:
-                self.logger.info(f"Calling tool: {tool_name}")
-                return tool["function"](**kwargs)
-        
-        raise ValueError(f"Tool '{tool_name}' not found in {self.name}")
+    model = model_name or config.get("model", "gemini-2.0-flash-exp")
+    
+    logger.info(f"Creating ADK agent: {name} with model {model}")
+    
+    # Create ADK agent
+    agent = LlmAgent(
+        name=name,
+        model=model,
+        instruction=instruction,
+        description=description,
+        tools=tools or [],
+        sub_agents=sub_agents or []
+    )
+    
+    logger.info(f"{name} initialized with {len(tools or [])} tools and {len(sub_agents or [])} sub-agents")
+    
+    return agent
+
+
+class AgentResponse:
+    """Wrapper for agent responses to maintain compatibility with existing code"""
+    
+    def __init__(self, agent_name: str, response_text: str, success: bool = True, metadata: Dict = None):
+        self.agent = agent_name
+        self.response = response_text
+        self.success = success
+        self.metadata = metadata or {}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format"""
+        return {
+            "agent": self.agent,
+            "response": self.response,
+            "success": self.success,
+            "metadata": self.metadata
+        }

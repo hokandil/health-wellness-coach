@@ -7,61 +7,75 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.agents.base_agent import BaseAgent
+from src.agents.base_agent import create_adk_agent
 from config.prompts import NUTRITION_AGENT_PROMPT
-from src.tools.nutrition_tools import NUTRITION_TOOLS
+from src.tools import nutrition_tools
 
 
-class NutritionAgent(BaseAgent):
-    """Nutrition specialist agent"""
+def create_nutrition_agent():
+    """Create and configure the Nutrition Agent using Google ADK"""
     
-    def __init__(self):
-        super().__init__(
-            name="Nutrition Agent",
-            system_prompt=NUTRITION_AGENT_PROMPT,
-            tools=NUTRITION_TOOLS
-        )
+    # Get all nutrition tool functions
+    tools = [
+        nutrition_tools.calculate_daily_calories,
+        nutrition_tools.calculate_macro_targets,
+        nutrition_tools.analyze_meal_macros,
+        nutrition_tools.generate_meal_plan
+    ]
     
-    def create_meal_plan(
-        self,
-        user_profile: Dict[str, Any],
-        num_days: int = 7
-    ) -> Dict[str, Any]:
-        """Create personalized meal plan for user"""
-        # Calculate calorie and macro targets
-        calories_data = self.call_tool(
-            "calculate_daily_calories",
-            age=user_profile["age"],
-            weight_kg=user_profile["current_weight_kg"],
-            height_cm=user_profile["height_cm"],
-            gender=user_profile["gender"],
-            activity_level=user_profile.get("activity_level", "moderate"),
-            goal=user_profile.get("primary_goal", "lose_weight")
-        )
-        
-        target_calories = calories_data["target_calories"]
-        
-        macro_targets = self.call_tool(
-            "calculate_macro_targets",
-            target_calories=target_calories,
-            weight_kg=user_profile["current_weight_kg"],
-            goal=user_profile.get("primary_goal", "lose_weight")
-        )
-        
-        # Generate meal plan
-        meal_plan = self.call_tool(
-            "generate_meal_plan",
-            target_calories=target_calories,
-            macro_targets=macro_targets,
-            dietary_restrictions=user_profile.get("dietary_restrictions", []),
-            liked_foods=user_profile.get("preferences", {}).get("liked_foods", []),
-            disliked_foods=user_profile.get("preferences", {}).get("disliked_foods", []),
-            num_days=num_days
-        )
-        
-        return {
-            "calories_data": calories_data,
-            "macro_targets": macro_targets,
-            "meal_plan": meal_plan,
-            "success": True
-        }
+    agent = create_adk_agent(
+        name="Nutrition Agent",
+        instruction=NUTRITION_AGENT_PROMPT,
+        description="Specialist in meal planning, nutrition guidance, and macro calculations",
+        tools=tools
+    )
+    
+    return agent
+
+
+# Helper functions for common nutrition workflows
+def create_meal_plan_workflow(
+    agent,
+    user_profile: Dict[str, Any],
+    num_days: int = 7
+) -> Dict[str, Any]:
+    """
+    Execute complete meal planning workflow
+    
+    Args:
+        agent: Nutrition agent instance
+        user_profile: User profile data
+        num_days: Number of days to plan
+    
+    Returns:
+        Complete meal plan with calorie and macro data
+    """
+    # Build context-aware prompt
+    prompt = f"""Create a personalized {num_days}-day meal plan for this user:
+
+User Profile:
+- Age: {user_profile.get('age')}
+- Gender: {user_profile.get('gender')}
+- Weight: {user_profile.get('current_weight_kg')}kg
+- Height: {user_profile.get('height_cm')}cm
+- Activity Level: {user_profile.get('activity_level', 'moderate')}
+- Goal: {user_profile.get('primary_goal', 'lose_weight')}
+- Dietary Restrictions: {', '.join(user_profile.get('dietary_restrictions', []))}
+- Liked Foods: {', '.join(user_profile.get('preferences', {}).get('liked_foods', []))}
+- Disliked Foods: {', '.join(user_profile.get('preferences', {}).get('disliked_foods', []))}
+
+Please:
+1. Calculate appropriate daily calorie target
+2. Determine optimal macro distribution
+3. Generate a {num_days}-day meal plan with recipes
+4. Provide a shopping list
+
+Use the available tools to calculate calories, macros, and generate the meal plan."""
+
+    # ADK agent will automatically use tools as needed
+    response = agent.run(prompt)
+    
+    return {
+        "response": response,
+        "success": True
+    }

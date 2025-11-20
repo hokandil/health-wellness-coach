@@ -1,9 +1,11 @@
 """
 Fitness-related tools for workout planning and exercise recommendations
+
+These tools are used by the Fitness Agent via Google ADK.
 """
-import google.generativeai as genai
 from typing import Dict, List, Any
 import json
+import os
 
 
 def assess_fitness_level(
@@ -158,23 +160,3 @@ def calculate_calories_burned(
         "calories_burned": round(calories),
         "calories_per_minute": round(calories / duration_minutes, 1)
     }
-
-
-# Tool registration metadata
-FITNESS_TOOLS = [
-    {
-        "name": "assess_fitness_level",
-        "function": assess_fitness_level,
-        "description": "Assess user's current fitness level based on performance tests"
-    },
-    {
-        "name": "generate_workout_plan",
-        "function": generate_workout_plan,
-        "description": "Generate personalized workout program with progressive overload"
-    },
-    {
-        "name": "calculate_calories_burned",
-        "function": calculate_calories_burned,
-        "description": "Calculate estimated calories burned during exercise using MET values"
-    }
-]
