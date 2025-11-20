@@ -19,7 +19,7 @@ def create_sleep_agent():
     tools = [
         sleep_tools.assess_sleep_quality,
         sleep_tools.recommend_sleep_schedule,
-        sleep_tools.analyze_sleep_environment
+        sleep_tools.analyze_sleep_patterns
     ]
     
     agent = create_adk_agent(

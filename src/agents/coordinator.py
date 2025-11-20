@@ -62,7 +62,7 @@ def execute_health_workflow(
     context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Execute a health coaching workflow
+    Execute a health coaching workflow using ADK Runner
     
     ADK automatically:
     - Analyzes the request
@@ -78,18 +78,55 @@ def execute_health_workflow(
     Returns:
         Complete response with routing and agent outputs
     """
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+    import asyncio
+    
     # Build context-aware prompt if context provided
     if context:
         full_prompt = _build_prompt_with_context(user_input, context)
     else:
         full_prompt = user_input
     
-    # ADK handles all orchestration automatically
-    response = coordinator.run(full_prompt)
+    # Create session service and runner
+    session_service = InMemorySessionService()
+    runner = Runner(
+        app_name="health_wellness_coach",
+        agent=coordinator,
+        session_service=session_service
+    )
+    
+    # Run synchronously
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    # Execute agent and collect response
+    async def run_agent():
+        response_text = ""
+        # Start runner with user and session IDs
+        async for event in runner.run_async(user_id="user_001", session_id="session_001"):
+            # Send the user message
+            await runner.send_message(full_prompt)
+            # Collect agent response events
+            async for response_event in runner.run_async(user_id="user_001", session_id="session_001"):
+                if hasattr(response_event, 'text'):
+                    response_text += response_event.text
+                elif hasattr(response_event, 'content'):
+                    response_text += str(response_event.content)
+            break
+        return response_text if response_text else "No response from agent"
+    
+    response_text = loop.run_until_complete(run_agent())
     
     return {
         "user_input": user_input,
-        "final_response": response,
+        "final_response": response_text,
         "success": True
     }
 
