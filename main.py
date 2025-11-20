@@ -1,17 +1,12 @@
 """
-Personal Health & Wellness Coach - Main Demo Application (Google ADK)
+Personal Health & Wellness Coach - Interactive Mode (Google ADK)
 
-This demonstrates the multi-agent health coaching system built with Google ADK:
-- 4 specialized agents (Nutrition, Fitness, Sleep, Mental Wellness)
-- Health Coordinator for intelligent orchestration
-- Memory Bank for user profiles
-- Automatic multi-agent coordination via ADK
+Continuous conversation with your AI health coach.
 """
 
 import sys
 from pathlib import Path
 import logging
-import os
 
 # Add project root to path
 project_root = Path(__file__).parent
@@ -29,9 +24,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def initialize_system():
-    """Initialize the health coach system with ADK"""
-    print("🏥 Initializing Personal Health & Wellness Coach (Google ADK)...")
+def main():
+    """Interactive Health Coach - Continuous Conversation Mode"""
+    print("\n" + "=" * 60)
+    print("   🏥 PERSONAL HEALTH & WELLNESS COACH")
+    print("   AI Multi-Agent System (Powered by Google ADK)")
     print("=" * 60)
     
     # Check API key
@@ -39,267 +36,121 @@ def initialize_system():
         print("\n⚠️  WARNING: GOOGLE_API_KEY not set!")
         print("Please create a .env file with your Gemini API key.")
         print("Copy .env.example to .env and add your key.\n")
-        return None, None
+        return
     
-    # Initialize coordinator with all sub-agents (ADK handles everything)
+    print("\n🏥 Initializing your AI Health Coach...")
+    print("-" * 60)
+    
+    # Initialize coordinator with all sub-agents
     coordinator = create_health_coordinator()
     
     # Initialize memory bank
     memory_bank = MemoryBank()
     
-    print("✅ System initialized successfully!")
-    print(f"   - Health Coordinator: Active (ADK Multi-Agent)")
+    print("✅ Health Coach ready!")
     print(f"   - Specialized Agents: 4 (Nutrition, Fitness, Sleep, Mental Wellness)")
     print(f"   - Memory Bank: Active")
     print("=" * 60)
     
-    return coordinator, memory_bank
-
-
-def demo_scenario_1_new_user():
-    """Demo: New user onboarding"""
-    print("\n📋 DEMO SCENARIO 1: New User Onboarding")
-    print("-" * 60)
+    # User profile (will be built during conversation)
+    user_profile = None
+    conversation_history = []
     
-    coordinator, memory_bank = initialize_system()
-    if not coordinator:
-        return
-    
-    # Create sample user profile
-    user_profile = {
-        "age": 32,
-        "gender": "male",
-        "current_weight_kg": 82,
-        "height_cm": 178,
-        "activity_level": "moderate",
-        "primary_goal": "lose_weight",
-        "dietary_restrictions": ["lactose"],
-        "preferences": {
-            "liked_foods": ["chicken", "salmon", "broccoli", "quinoa"],
-            "disliked_foods": ["brussels_sprouts"]
-        },
-        "fitness_goals": ["lose_weight", "build_muscle"],
-        "training_days_per_week": 3,
-        "available_equipment": ["bodyweight", "dumbbells"]
-    }
-    
-    # Store user profile
-    memory_bank.update_user_profile("user_001", user_profile)
-    print("✅ User profile created and stored")
-    
-    # User request
-    user_input = "Hi! I want to lose 15 pounds in 3 months. Can you help me create a plan?"
-    
-    print(f"\n👤 User: {user_input}")
-    print("\n🤖 Processing with ADK Health Coordinator...")
-    print("   (ADK automatically routes to appropriate agents)\n")
-    
-    # Execute workflow - ADK handles routing and coordination
-    result = execute_health_workflow(
-        coordinator=coordinator,
-        user_input=user_input,
-        context={"user_profile": user_profile}
-    )
-    
-    print(f"💬 Response:")
-    print(result['final_response'])
-
-
-def demo_scenario_2_daily_checkin():
-    """Demo: Daily check-in with ADK automatic coordination"""
-    print("\n📋 DEMO SCENARIO 2: Daily Check-In (ADK Auto-Coordination)")
-    print("-" * 60)
-    
-    coordinator, memory_bank = initialize_system()
-    if not coordinator:
-        return
-    
-    user_profile = memory_bank.get_user_profile("user_001")
-    if not user_profile:
-        print("⚠️  No user profile found. Run Scenario 1 first.")
-        return
-    
-    user_input = """Good morning! Here's my daily check-in:
-- Slept 6.5 hours last night
-- Had coffee and toast for breakfast
-- Feeling a bit tired
-- Workout scheduled for 6 PM today"""
-    
-    print(f"\n👤 User: {user_input}")
-    print("\n🤖 Processing with ADK (automatic multi-agent coordination)...\n")
-    
-    result = execute_health_workflow(
-        coordinator=coordinator,
-        user_input=user_input,
-        context={"user_profile": user_profile}
-    )
-    
-    print(f"💬 Synthesized Response:")
-    print(result['final_response'])
-
-
-def demo_scenario_3_tool_usage():
-    """Demo: Direct tool usage"""
-    print("\n📋 DEMO SCENARIO 3: Tool Usage Examples")
-    print("-" * 60)
-    
-    from src.tools.nutrition_tools import calculate_daily_calories, calculate_macro_targets
-    from src.tools.fitness_tools import calculate_calories_burned
-    from src.tools.sleep_tools import assess_sleep_quality, recommend_sleep_schedule
-    
-    print("\n🍽️  Nutrition Tool: Calculate Daily Calories")
-    calories = calculate_daily_calories(
-        age=32,
-        weight_kg=82,
-        height_cm=178,
-        gender="male",
-        activity_level="moderate",
-        goal="lose_weight"
-    )
-    print(f"   BMR: {calories['bmr']} cal")
-    print(f"   TDEE: {calories['tdee']} cal")
-    print(f"   Target (weight loss): {calories['target_calories']} cal")
-    
-    print("\n🍽️  Nutrition Tool: Calculate Macro Targets")
-    macros = calculate_macro_targets(
-        target_calories=calories['target_calories'],
-        weight_kg=82,
-        goal="lose_weight"
-    )
-    print(f"   Protein: {macros['protein']['grams']}g ({macros['protein']['percentage']}%)")
-    print(f"   Carbs: {macros['carbs']['grams']}g ({macros['carbs']['percentage']}%)")
-    print(f"   Fats: {macros['fats']['grams']}g ({macros['fats']['percentage']}%)")
-    
-    print("\n🏋️  Fitness Tool: Calculate Calories Burned")
-    workout = calculate_calories_burned(
-        activity="running",
-        duration_minutes=30,
-        weight_kg=82,
-        intensity="moderate"
-    )
-    print(f"   Activity: {workout['activity']} ({workout['intensity']})")
-    print(f"   Duration: {workout['duration_minutes']} minutes")
-    print(f"   Calories Burned: {workout['calories_burned']} cal")
-    
-    print("\n😴 Sleep Tool: Assess Sleep Quality")
-    sleep_assessment = assess_sleep_quality(
-        hours_slept=6.5,
-        times_woke_up=2,
-        time_to_fall_asleep_minutes=20,
-        felt_rested=False,
-        caffeine_after_2pm=True,
-        screen_time_before_bed=True
-    )
-    print(f"   Sleep Quality Score: {sleep_assessment['sleep_quality_score']}/10")
-    print(f"   Rating: {sleep_assessment['rating']}")
-    print(f"   Issues: {', '.join(sleep_assessment['issues_identified'][:2])}")
-    
-    print("\n😴 Sleep Tool: Recommend Sleep Schedule")
-    schedule = recommend_sleep_schedule(
-        desired_wake_time="06:30",
-        sleep_cycles_needed=5
-    )
-    print(f"   Wake Time: {schedule['wake_time']}")
-    print(f"   Recommended Bedtime: {schedule['recommended_bedtime']}")
-    print(f"   Total Sleep: {schedule['total_sleep_hours']} hours ({schedule['sleep_cycles']} cycles)")
-
-
-def interactive_mode():
-    """Interactive chat mode with ADK"""
-    print("\n💬 INTERACTIVE MODE (Google ADK)")
-    print("-" * 60)
-    
-    coordinator, memory_bank = initialize_system()
-    if not coordinator:
-        return
-    
-    # Try to load existing user profile
-    user_profile = memory_bank.get_user_profile("user_001")
-    
-    print("\nYou can now chat with your AI health coach!")
-    print("Type 'quit' to exit, 'profile' to see your profile, 'help' for commands.\n")
+    print("\n💬 Welcome to your Personal Health & Wellness Coach!")
+    print("\nI'm here to help you with:")
+    print("  • Nutrition planning and meal guidance")
+    print("  • Fitness programs and workout advice")
+    print("  • Sleep quality and recovery optimization")
+    print("  • Mental wellness and motivation")
+    print("\nType 'quit' to exit, 'profile' to see your profile, 'clear' to start fresh.")
+    print("Let's get started!\n")
     
     while True:
         try:
+            # Get user input
             user_input = input("You: ").strip()
             
             if not user_input:
                 continue
             
+            # Handle commands
             if user_input.lower() == 'quit':
-                print("\n👋 Goodbye! Stay healthy!")
+                print("\n👋 Thank you for using Health Coach! Stay healthy!")
                 break
             
             if user_input.lower() == 'profile':
                 if user_profile:
                     print(f"\n📋 Your Profile:")
-                    print(f"   Age: {user_profile.get('age')}")
-                    print(f"   Weight: {user_profile.get('current_weight_kg')}kg")
-                    print(f"   Goal: {user_profile.get('primary_goal')}")
+                    for key, value in user_profile.items():
+                        if key != 'preferences':
+                            print(f"   {key.replace('_', ' ').title()}: {value}")
                 else:
-                    print("\n⚠️  No profile found. Create one by chatting with the coach!")
+                    print("\n⚠️  No profile created yet. Share your health goals to build your profile!")
+                print()
+                continue
+            
+            if user_input.lower() == 'clear':
+                conversation_history = []
+                user_profile = None
+                print("\n🔄 Conversation cleared. Let's start fresh!\n")
                 continue
             
             if user_input.lower() == 'help':
                 print("\n📚 Available Commands:")
                 print("   quit - Exit the program")
-                print("   profile - View your profile")
+                print("   profile - View your health profile")
+                print("   clear - Clear conversation history and start fresh")
                 print("   help - Show this help message")
                 print("   Or just chat naturally with your health coach!\n")
                 continue
             
-            # Process with ADK coordinator
+            # Add to conversation history
+            conversation_history.append({"role": "user", "content": user_input})
+            
+            # Build context with conversation history
+            context = {
+                "user_profile": user_profile,
+                "conversation_history": conversation_history[-5:]  # Last 5 exchanges
+            }
+            
+            # Process with coordinator
+            print("\n🤖 Coach: ", end="", flush=True)
             result = execute_health_workflow(
                 coordinator=coordinator,
                 user_input=user_input,
-                context={"user_profile": user_profile} if user_profile else None
+                context=context
             )
             
-            print(f"\nCoach: {result['final_response']}\n")
+            response = result['final_response']
+            print(response)
+            print()
+            
+            # Add to conversation history
+            conversation_history.append({"role": "assistant", "content": response})
+            
+            # Try to extract profile information from first few interactions
+            if not user_profile and len(conversation_history) <= 10:
+                # Simple profile extraction (can be enhanced)
+                if any(word in user_input.lower() for word in ['lose weight', 'gain muscle', 'get fit']):
+                    if not user_profile:
+                        user_profile = {}
+                    if 'lose weight' in user_input.lower():
+                        user_profile['primary_goal'] = 'lose_weight'
+                    elif 'gain muscle' in user_input.lower():
+                        user_profile['primary_goal'] = 'build_muscle'
+                    elif 'get fit' in user_input.lower():
+                        user_profile['primary_goal'] = 'general_fitness'
+                    
+                    # Save to memory bank
+                    memory_bank.update_user_profile("user_001", user_profile)
             
         except KeyboardInterrupt:
-            print("\n\n👋 Goodbye! Stay healthy!")
+            print("\n\n👋 Thank you for using Health Coach! Stay healthy!")
             break
         except Exception as e:
-            logger.error(f"Error in interactive mode: {e}")
-            print(f"\n❌ Error: {e}\n")
-
-
-def main():
-    """Main entry point"""
-    print("\n" + "=" * 60)
-    print("   🏥 PERSONAL HEALTH & WELLNESS COACH")
-    print("   AI Multi-Agent System (Powered by Google ADK)")
-    print("=" * 60)
-    
-    print("\nAvailable Demos:")
-    print("1. New User Onboarding")
-    print("2. Daily Check-In (ADK Auto-Coordination)")
-    print("3. Tool Usage Examples")
-    print("4. Interactive Chat Mode")
-    print("5. Run All Demos")
-    print("0. Exit")
-    
-    choice = input("\nSelect demo (0-5): ").strip()
-    
-    if choice == "1":
-        demo_scenario_1_new_user()
-    elif choice == "2":
-        demo_scenario_2_daily_checkin()
-    elif choice == "3":
-        demo_scenario_3_tool_usage()
-    elif choice == "4":
-        interactive_mode()
-    elif choice == "5":
-        demo_scenario_1_new_user()
-        input("\nPress Enter to continue to next demo...")
-        demo_scenario_2_daily_checkin()
-        input("\nPress Enter to continue to next demo...")
-        demo_scenario_3_tool_usage()
-    elif choice == "0":
-        print("\n👋 Goodbye!")
-    else:
-        print("\n❌ Invalid choice. Please run again and select 0-5.")
+            logger.error(f"Error in conversation: {e}")
+            print(f"\n❌ Sorry, I encountered an error: {str(e)}")
+            print("Let's try again!\n")
 
 
 if __name__ == "__main__":
