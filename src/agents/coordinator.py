@@ -16,15 +16,29 @@ def create_health_coordinator():
     Create the Health Coordinator (simplified for Bytez API)
     
     Returns:
-        Coordinator configuration
+        Coordinator configuration with sub-agents
     """
+    from src.agents.nutrition_agent import create_nutrition_agent
+    from src.agents.fitness_agent import create_fitness_agent
+    from src.agents.sleep_agent import create_sleep_agent
+    from src.agents.mental_wellness_agent import create_mental_wellness_agent
+    
     logger = logging.getLogger("HealthCoordinator")
     logger.info("Health Coordinator initialized for Bytez API")
+    
+    # Create sub-agents
+    sub_agents = {
+        "nutrition_agent": create_nutrition_agent(),
+        "fitness_agent": create_fitness_agent(),
+        "sleep_agent": create_sleep_agent(),
+        "mental_wellness_agent": create_mental_wellness_agent()
+    }
     
     return {
         "name": "health_coordinator",
         "model": "google/gemini-2.5-flash",
-        "instruction": COORDINATOR_PROMPT
+        "instruction": COORDINATOR_PROMPT,
+        "sub_agents": sub_agents
     }
 
 
@@ -41,7 +55,7 @@ def execute_health_workflow(
     - "google/" prefix -> Use Google API directly
     
     Args:
-        coordinator: Health coordinator agent
+        coordinator: Health coordinator dict
         user_input: User's message or query
         context: Optional user context (profile, history, etc.)
     
@@ -49,6 +63,7 @@ def execute_health_workflow(
         Complete response
     """
     import os
+    import json
     
     # Build context-aware prompt
     if context:
@@ -65,19 +80,88 @@ def execute_health_workflow(
         tracer.log_event("input_received", {"length": len(user_input)})
         
         try:
-            # Detect API type from model prefix
-            if model_name.startswith("bytez/"):
-                # Use Bytez API
-                result = _execute_with_bytez(model_name, full_prompt, user_input)
-            elif model_name.startswith("google/"):
-                # Use Google API directly
-                result = _execute_with_google(model_name, full_prompt, user_input)
-            else:
-                # Default to Bytez if no prefix
-                result = _execute_with_bytez(f"bytez/{model_name}", full_prompt, user_input)
+            # 1. ROUTING STEP: Ask LLM which agent to use
+            routing_prompt = f"""
+            User Input: "{user_input}"
             
-            tracer.log_event("execution_complete", {"success": result.get("success", False)})
-            return result
+            Available Agents:
+            - nutrition_agent: For diet, food, calories, macros, meal plans.
+            - fitness_agent: For exercise, workouts, stretching, muscle tightness, recovery.
+            - sleep_agent: For sleep patterns, insomnia, fatigue.
+            - mental_wellness_agent: For stress, motivation, mindset.
+            - none: If the user is just saying hello, goodbye, or asking a general question that doesn't need a specialist.
+            
+            Return ONLY a JSON object with:
+            {{
+                "selected_agent": "agent_name_or_none",
+                "reasoning": "brief explanation"
+            }}
+            """
+            
+            # Execute routing call
+            if model_name.startswith("bytez/"):
+                routing_response = _execute_with_bytez(model_name, routing_prompt, user_input, is_json=True)
+            elif model_name.startswith("google/"):
+                routing_response = _execute_with_google(model_name, routing_prompt, user_input)
+            else:
+                routing_response = _execute_with_bytez(f"bytez/{model_name}", routing_prompt, user_input, is_json=True)
+            
+            try:
+                # Clean up response to ensure valid JSON
+                text = routing_response["final_response"].strip()
+                if text.startswith("```json"): text = text[7:-3]
+                elif text.startswith("```"): text = text[3:-3]
+                routing_decision = json.loads(text)
+                selected_agent = routing_decision.get("selected_agent", "none")
+                tracer.log_event("routing_decision", routing_decision)
+            except Exception as e:
+                logging.error(f"Routing parse error: {e}")
+                selected_agent = "none"
+            
+            # 2. EXECUTION STEP
+            sub_agents = coordinator.get("sub_agents", {})
+            if selected_agent != "none" and selected_agent in sub_agents:
+                target_agent = sub_agents[selected_agent]
+                agent_name = target_agent.name if hasattr(target_agent, 'name') else target_agent.get('name', selected_agent)
+                
+                with Tracer(f"Agent:{selected_agent}") as agent_tracer:
+                    # Prepare agent-specific prompt
+                    agent_prompt = f"""
+                    You are the {agent_name}.
+                    User Input: "{user_input}"
+                    
+                    Provide a helpful, expert response based on your specialty.
+                    """
+                    
+                    # Execute agent call
+                    if model_name.startswith("bytez/"):
+                        agent_response = _execute_with_bytez(model_name, agent_prompt, user_input)
+                    elif model_name.startswith("google/"):
+                        agent_response = _execute_with_google(model_name, agent_prompt, user_input)
+                    else:
+                        agent_response = _execute_with_bytez(f"bytez/{model_name}", agent_prompt, user_input)
+                    
+                    final_text = agent_response["final_response"]
+                    agent_tracer.log_event("agent_response", {"length": len(final_text)})
+                    
+                    # Prefix with agent name for clarity
+                    final_response = f"**{agent_name}**: {final_text}"
+            else:
+                # Direct response from coordinator (General chat)
+                if model_name.startswith("bytez/"):
+                    response = _execute_with_bytez(model_name, full_prompt, user_input)
+                elif model_name.startswith("google/"):
+                    response = _execute_with_google(model_name, full_prompt, user_input)
+                else:
+                    response = _execute_with_bytez(f"bytez/{model_name}", full_prompt, user_input)
+                final_response = response["final_response"]
+
+            tracer.log_event("execution_complete", {"success": True})
+            return {
+                "user_input": user_input,
+                "final_response": final_response,
+                "success": True
+            }
                 
         except Exception as e:
             logging.error(f"Error executing workflow: {e}")
@@ -89,7 +173,7 @@ def execute_health_workflow(
             }
 
 
-def _execute_with_bytez(model_name: str, full_prompt: str, user_input: str) -> Dict[str, Any]:
+def _execute_with_bytez(model_name: str, full_prompt: str, user_input: str, is_json: bool = False) -> Dict[str, Any]:
     """Execute using Bytez API"""
     from bytez import Bytez
     import os
@@ -113,7 +197,7 @@ def _execute_with_bytez(model_name: str, full_prompt: str, user_input: str) -> D
     
     # Prepare messages
     messages = [
-        {"role": "system", "content": COORDINATOR_PROMPT},
+        {"role": "system", "content": COORDINATOR_PROMPT + ("\nReturn JSON only." if is_json else "")},
         {"role": "user", "content": full_prompt}
     ]
     

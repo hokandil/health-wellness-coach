@@ -1,10 +1,16 @@
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import ConsoleSpanExporter, SimpleSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configure logging
 log_dir = Path("logs")
@@ -26,8 +32,11 @@ resource = Resource.create({"service.name": "health-wellness-coach"})
 trace.set_tracer_provider(TracerProvider(resource=resource))
 tracer = trace.get_tracer(__name__)
 
-# For development, export traces to console
-span_processor = SimpleSpanProcessor(ConsoleSpanExporter())
+# Configure OTLP Exporter (Jaeger)
+# Use JAEGER_ENDPOINT from env or default to localhost
+jaeger_endpoint = os.getenv("JAEGER_ENDPOINT", "http://localhost:4317")
+otlp_exporter = OTLPSpanExporter(endpoint=jaeger_endpoint, insecure=True)
+span_processor = BatchSpanProcessor(otlp_exporter)
 trace.get_tracer_provider().add_span_processor(span_processor)
 
 class Tracer:
@@ -36,6 +45,7 @@ class Tracer:
     def __init__(self, name: str):
         self.name = name
         self.span = None
+        self.ctx_manager = None
         
     def __enter__(self):
         self.ctx_manager = tracer.start_as_current_span(self.name)
@@ -50,7 +60,8 @@ class Tracer:
             else:
                 self.span.set_status(trace.Status(trace.StatusCode.OK))
         # Exit the context manager properly
-        self.ctx_manager.__exit__(exc_type, exc_val, exc_tb)
+        if self.ctx_manager:
+            self.ctx_manager.__exit__(exc_type, exc_val, exc_tb)
         
     def log_event(self, event_name: str, data: Dict[str, Any] = None):
         """Add event to the current span"""
@@ -67,3 +78,18 @@ def log_api_call(provider: str, model: str, prompt_tokens: int = 0, completion_t
         current_span.set_attribute("llm.model", model)
         current_span.set_attribute("llm.prompt_tokens", prompt_tokens)
         current_span.set_attribute("llm.completion_tokens", completion_tokens)
+
+def trace_tool(func):
+    """Decorator to trace tool execution"""
+    def wrapper(*args, **kwargs):
+        with Tracer(f"Tool: {func.__name__}") as tracer:
+            # Log arguments (be careful with sensitive data)
+            tracer.log_event("tool_start", {"args": str(args), "kwargs": str(kwargs)})
+            try:
+                result = func(*args, **kwargs)
+                tracer.log_event("tool_end", {"result": str(result)[:100] + "..." if len(str(result)) > 100 else str(result)})
+                return result
+            except Exception as e:
+                tracer.log_event("tool_error", {"error": str(e)})
+                raise e
+    return wrapper

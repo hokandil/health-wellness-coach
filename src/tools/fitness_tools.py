@@ -6,8 +6,11 @@ These tools are used by the Fitness Agent via Google ADK.
 from typing import Dict, List, Any
 import json
 import os
+import google.generativeai as genai
+from src.utils.observability import trace_tool
 
 
+@trace_tool
 def assess_fitness_level(
     can_do_pushups: int,
     can_do_squats: int,
@@ -50,6 +53,7 @@ def assess_fitness_level(
     }
 
 
+@trace_tool
 def generate_workout_plan(
     fitness_level: str,
     goals: List[str],
@@ -116,6 +120,7 @@ Return ONLY valid JSON."""
         }
 
 
+@trace_tool
 def calculate_calories_burned(
     activity: str,
     duration_minutes: int,

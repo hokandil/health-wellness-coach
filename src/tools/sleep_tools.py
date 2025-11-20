@@ -5,8 +5,10 @@ These tools are used by the Sleep Agent via Google ADK.
 """
 from typing import Dict, List, Any
 from datetime import datetime, timedelta
+from src.utils.observability import trace_tool
 
 
+@trace_tool
 def assess_sleep_quality(
     hours_slept: float,
     times_woke_up: int = 0,
@@ -100,6 +102,7 @@ def assess_sleep_quality(
     }
 
 
+@trace_tool
 def recommend_sleep_schedule(
     desired_wake_time: str,
     sleep_cycles_needed: int = 5
@@ -154,6 +157,7 @@ def recommend_sleep_schedule(
     }
 
 
+@trace_tool
 def analyze_sleep_patterns(
     sleep_log: List[Dict[str, Any]]
 ) -> Dict[str, Any]:

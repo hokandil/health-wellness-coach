@@ -6,8 +6,10 @@ These tools are used by the Nutrition Agent via Google ADK.
 from typing import Dict, List, Any
 import json
 import os
+from src.utils.observability import trace_tool
 
 
+@trace_tool
 def calculate_daily_calories(
     age: int,
     weight_kg: float,
@@ -69,6 +71,7 @@ def calculate_daily_calories(
     }
 
 
+@trace_tool
 def calculate_macro_targets(
     target_calories: int,
     weight_kg: float,
@@ -87,6 +90,7 @@ def calculate_macro_targets(
     Returns:
         Dictionary with macro targets in grams and percentages
     """
+    # ... (rest of function logic remains same, just decorating)
     # Protein: Higher for weight loss and muscle gain
     if goal in ["lose_weight", "gain_muscle"]:
         protein_g_per_kg = 2.0  # 2g per kg for muscle preservation/growth
@@ -125,6 +129,7 @@ def calculate_macro_targets(
     }
 
 
+@trace_tool
 def analyze_meal_macros(meal_description: str, api_key: str = None) -> Dict[str, Any]:
     """
     Analyze macronutrients in a meal description using Gemini
@@ -191,6 +196,7 @@ Return ONLY the JSON, no other text."""
         }
 
 
+@trace_tool
 def generate_meal_plan(
     target_calories: int,
     macro_targets: Dict[str, Any],
@@ -223,6 +229,7 @@ def generate_meal_plan(
             "error": "No API key configured",
             "days": []
         }
+
     
     client = Client(api_key=api_key)
     
