@@ -1,6 +1,6 @@
 # 🏥 Personal Health & Wellness Coach
 
-An AI-powered multi-agent system for comprehensive health and wellness guidance. This project demonstrates advanced AI agent concepts including multi-agent orchestration, tool usage, memory management, and agent-to-agent communication.
+An AI-powered multi-agent system for comprehensive health and wellness guidance. This project demonstrates advanced AI agent concepts using the **Google Agent Development Kit (ADK)** and **Google Gemini** models. It features multi-agent orchestration, tool usage, memory management, and agent-to-agent communication.
 
 ## 🎯 Project Overview
 
@@ -53,14 +53,12 @@ pip install -r requirements.txt
 ```bash
 # Copy environment template
 cp .env.example .env
-
-# Edit .env and add your Google AI API key
-# Get your key from: https://makersuite.google.com/app/apikey
 ```
 
-Edit `.env`:
+Edit `.env` and add your Google AI API key:
 ```
 GOOGLE_API_KEY=your_actual_api_key_here
+MODEL_NAME=gemini-2.5-flash  # Optional, defaults to gemini-2.5-flash
 ```
 
 ### 3. Run Demo
@@ -71,33 +69,29 @@ python main.py
 
 ## 📚 Features Demonstrated
 
-### Day 1: Multi-Agent Systems
+### Multi-Agent Systems
 - ✅ 4 specialized agents + coordinator
 - ✅ Parallel execution (daily check-ins)
 - ✅ Sequential execution (coordinated planning)
 - ✅ Single agent routing
 
-### Day 2: Tools & MCP
+### Tools & ADK
 - ✅ Custom Python tools (calorie calculation, workout generation)
 - ✅ Gemini integration for meal/workout planning
 - ✅ MET-based calorie burn calculation
 - ✅ Sleep cycle optimization
+- ✅ **Google ADK Integration**: Uses `google-adk` for agent orchestration and tool management.
 
-### Day 3: Memory & Sessions
+### Memory & Sessions
 - ✅ Memory Bank for user profiles
 - ✅ Progress tracking over time
 - ✅ Preference learning
 - ✅ Context-aware recommendations
 
-### Day 4: Observability & Evaluation
+### Observability & Evaluation
 - ✅ Logging system
 - ✅ Agent decision tracing
 - ✅ Safety checks (calorie floors, sleep minimums)
-
-### Day 5: A2A & Production
-- ✅ Agent-to-agent coordination
-- ✅ Conflict resolution (e.g., nutrition vs fitness goals)
-- ✅ Production-ready architecture
 
 ## 🎬 Demo Scenarios
 
@@ -107,11 +101,11 @@ Creates user profile and generates personalized health plan.
 ### Scenario 2: Daily Check-In
 Multi-agent parallel analysis of sleep, nutrition, energy, and workout readiness.
 
-### Scenario 3: Tool Usage
-Direct demonstration of nutrition, fitness, and sleep tools.
-
-### Scenario 4: Interactive Chat
-Natural conversation with the health coach.
+### Scenario 3: Interactive Chat
+Natural conversation with the health coach. Ask questions like:
+- "I want to lose weight"
+- "Create a workout plan for me"
+- "How can I sleep better?"
 
 ## 🛠️ Project Structure
 
@@ -119,11 +113,11 @@ Natural conversation with the health coach.
 health-wellness-coach/
 ├── config/
 │   ├── settings.py          # Configuration management
-│   └── prompts.py            # Agent system prompts
+│   └── prompts.py           # Agent system prompts
 ├── src/
 │   ├── agents/
-│   │   ├── base_agent.py     # Base agent class
-│   │   ├── coordinator.py    # Main orchestrator
+│   │   ├── base_agent.py    # Base agent factory & ADK setup
+│   │   ├── coordinator.py   # Main orchestrator
 │   │   ├── nutrition_agent.py
 │   │   ├── fitness_agent.py
 │   │   ├── sleep_agent.py
@@ -134,7 +128,7 @@ health-wellness-coach/
 │   │   └── sleep_tools.py      # Sleep analysis
 │   └── memory/
 │       └── memory_bank.py      # User profile storage
-├── main.py                   # Demo application
+├── main.py                  # Demo application
 ├── requirements.txt
 └── README.md
 ```
@@ -161,25 +155,34 @@ health-wellness-coach/
 
 ### Agents
 
-Each agent has:
+Each agent is built using the Google ADK `Agent` class and configured with:
 - Specialized system prompt
 - Domain-specific tools
-- Gemini 2.0 Flash model
+- **Gemini 2.5 Flash** model
 - Context-aware processing
-
-### Memory
-
-- User profile storage (JSON-based)
-- Progress tracking
-- Preference learning
-- Historical data analysis
 
 ## 📖 Usage Examples
 
-### Example 1: Calculate Nutrition Targets
+### Running the Health Coach
+
+The main entry point is `main.py`, which initializes the `HealthCoordinator` and starts an interactive session.
 
 ```python
-from src.tools.nutrition_tools import calculate_daily_calories, calculate_macro_targets
+# From main.py
+from src.agents.coordinator import health_coordinator
+from src.core.runner_manager import RunnerManager
+
+# The coordinator manages sub-agents (Nutrition, Fitness, Sleep, Mental Wellness)
+runner = RunnerManager(health_coordinator)
+runner.run_interactive()
+```
+
+### Using Tools Directly
+
+You can also import and use the tools directly in your own scripts:
+
+```python
+from src.tools.nutrition_tools import calculate_daily_calories
 
 # Calculate TDEE
 calories = calculate_daily_calories(
@@ -191,39 +194,7 @@ calories = calculate_daily_calories(
     goal="lose_weight"
 )
 
-# Calculate macros
-macros = calculate_macro_targets(
-    target_calories=calories['target_calories'],
-    weight_kg=82,
-    goal="lose_weight"
-)
-
 print(f"Daily Target: {calories['target_calories']} calories")
-print(f"Protein: {macros['protein']['grams']}g")
-print(f"Carbs: {macros['carbs']['grams']}g")
-print(f"Fats: {macros['fats']['grams']}g")
-```
-
-### Example 2: Multi-Agent Workflow
-
-```python
-from src.agents.coordinator import HealthCoordinator
-from src.agents.nutrition_agent import NutritionAgent
-from src.agents.fitness_agent import FitnessAgent
-
-# Initialize agents
-coordinator = HealthCoordinator(sub_agents={
-    "nutrition_agent": NutritionAgent(),
-    "fitness_agent": FitnessAgent()
-})
-
-# Execute workflow
-result = coordinator.execute_workflow(
-    user_input="I want to lose weight and build muscle",
-    context={"user_profile": user_profile}
-)
-
-print(result['final_response'])
 ```
 
 ## 🎓 Course Concepts Mapping
@@ -237,7 +208,6 @@ print(result['final_response'])
 | Gemini Integration | Meal planning, workout generation, motivation |
 | Memory Bank | User profiles, preferences, progress history |
 | Context Engineering | Dynamic context assembly from user history |
-| A2A Protocol | Agents negotiate balanced health plans |
 | Observability | Logging, routing decisions, safety checks |
 
 ## 🔐 Safety Features
@@ -259,14 +229,14 @@ print(result['final_response'])
 
 ## 📝 License
 
-This project is created for educational purposes as part of the 5-Day AI Agents Intensive Course.
+This project is created for educational purposes.
 
 ## 🙏 Acknowledgments
 
 Built using:
-- Google Gemini 2.0 Flash
+- **Google ADK (Agent Development Kit)**
+- **Google Gemini 2.5 Flash**
 - Python 3.10+
-- Concepts from the 5-Day AI Agents Intensive Course
 
 ---
 
