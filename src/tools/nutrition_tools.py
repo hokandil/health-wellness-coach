@@ -3,7 +3,7 @@ Nutrition-related tools for meal planning and macro calculations
 
 These tools are used by the Nutrition Agent via Google ADK.
 """
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import json
 import os
 from src.utils.observability import trace_tool
@@ -130,7 +130,7 @@ def calculate_macro_targets(
 
 
 @trace_tool
-def analyze_meal_macros(meal_description: str, api_key: str = None) -> Dict[str, Any]:
+def analyze_meal_macros(meal_description: str, api_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Analyze macronutrients in a meal description using Gemini
     
@@ -200,11 +200,11 @@ Return ONLY the JSON, no other text."""
 def generate_meal_plan(
     target_calories: int,
     macro_targets: Dict[str, Any],
-    dietary_restrictions: List[str] = None,
-    liked_foods: List[str] = None,
-    disliked_foods: List[str] = None,
+    dietary_restrictions: Optional[List[str]] = None,
+    liked_foods: Optional[List[str]] = None,
+    disliked_foods: Optional[List[str]] = None,
     num_days: int = 7,
-    api_key: str = None
+    api_key: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generate a personalized meal plan

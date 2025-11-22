@@ -1,4 +1,5 @@
-# Core AI and Google# AI Framework
+# AI Framework
+google-adk>=0.1.0
 bytez>=0.1.0
 
 # Data Processing
@@ -22,4 +23,3 @@ opentelemetry-api>=1.20.0
 opentelemetry-sdk>=1.20.0
 opentelemetry-exporter-otlp>=1.20.0
 opentelemetry-instrumentation>=0.41b0
-l>=6.25.0

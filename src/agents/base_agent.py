@@ -1,85 +1,72 @@
 """
-Base agent utilities for Google ADK
+Base agent factory for creating ADK agents with consistent configuration.
+
+Provides `create_health_agent` to instantiate agents using Google Gemini models.
 """
-from google.adk.agents import LlmAgent
-from typing import Dict, List, Any, Optional, Callable
-import sys
-from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
-from config.settings import Settings
+import os
 import logging
+from typing import List, Optional, Callable
 
+from google.adk.agents import Agent
+from google.adk.models import LLMRegistry, Gemini
 
-def create_adk_agent(
+logger = logging.getLogger(__name__)
+
+def _resolve_model_name(model_name: Optional[str]) -> str:
+    """Return a model identifier compatible with the ADK registry.
+
+    - If the name starts with ``google/`` we strip that prefix.
+    - If it starts with ``models/`` we strip that prefix.
+    - Otherwise we assume the caller supplied a valid registry name.
+    """
+    default = "gemini-2.5-flash"
+    model = model_name or os.getenv("MODEL_NAME", default)
+    if model.startswith("google/"):
+        return model.replace("google/", "")
+    if model.startswith("models/"):
+        return model.replace("models/", "")
+    return model
+
+def create_health_agent(
     name: str,
     instruction: str,
     description: str,
-    tools: List[Callable] = None,
-    sub_agents: List[LlmAgent] = None,
-    model_name: str = None
-) -> LlmAgent:
-    """
-    Factory function to create ADK agents with consistent configuration
-    
+    tools: Optional[List[Callable]] = None,
+    output_key: Optional[str] = None,
+    model_name: Optional[str] = None,
+    temperature: float = 0.7,
+    max_tokens: int = 8192,
+) -> Agent:
+    """Factory function to create ADK agents with consistent configuration.
+
     Args:
-        name: Agent name (will be converted to valid identifier)
-        instruction: System instruction/prompt for the agent
-        description: Brief description of agent's role
-        tools: List of tool functions to equip the agent with
-        sub_agents: List of sub-agents for multi-agent coordination
-        model_name: Gemini model name (defaults to settings)
-    
+        name: Human‑readable agent name.
+        instruction: System prompt for the agent.
+        description: Brief description of the agent's role.
+        tools: List of tool callables to expose to the agent.
+        output_key: Session key for the agent's output.
+        model_name: Optional override for the model identifier.
+        temperature: Model temperature (0.0‑1.0).
+        max_tokens: Maximum tokens for the response.
+
     Returns:
-        Configured LlmAgent instance
+        Configured ADK ``Agent`` instance.
     """
-    # Convert name to valid Python identifier (ADK requirement)
+    # ADK requires the agent name to be a valid Python identifier
     valid_name = name.lower().replace(" ", "_").replace("-", "_")
-    
-    logger = logging.getLogger(name)
-    
-    # Get model configuration
-    agent_key = valid_name.replace("agent", "").strip("_")
-    config = Settings.AGENT_CONFIG.get(
-        agent_key,
-        Settings.AGENT_CONFIG.get("coordinator", {})
-    )
-    
-    model = model_name or config.get("model", "gemini-2.0-flash-exp")
-    
-    logger.info(f"Creating ADK agent: {valid_name} with model {model}")
-    
-    # Create ADK agent with valid identifier name
-    agent = LlmAgent(
+
+    actual_model = _resolve_model_name(model_name)
+    logger.info("Creating ADK agent: %s with model %s", valid_name, actual_model)
+
+    agent = Agent(
         name=valid_name,
-        model=model,
+        model=actual_model,
         instruction=instruction,
-        description=description,
         tools=tools or [],
-        sub_agents=sub_agents or []
+        output_key=output_key,
+        description=description,
     )
-    
-    logger.info(f"{valid_name} initialized with {len(tools or [])} tools and {len(sub_agents or [])} sub-agents")
-    
+
+    logger.info("%s initialized with %d tools, output_key=%s", valid_name, len(tools or []), output_key)
     return agent
-
-
-class AgentResponse:
-    """Wrapper for agent responses to maintain compatibility with existing code"""
-    
-    def __init__(self, agent_name: str, response_text: str, success: bool = True, metadata: Dict = None):
-        self.agent = agent_name
-        self.response = response_text
-        self.success = success
-        self.metadata = metadata or {}
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary format"""
-        return {
-            "agent": self.agent,
-            "response": self.response,
-            "success": self.success,
-            "metadata": self.metadata
-        }

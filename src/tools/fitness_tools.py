@@ -3,7 +3,7 @@ Fitness-related tools for workout planning and exercise recommendations
 
 These tools are used by the Fitness Agent via Google ADK.
 """
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import json
 import os
 import google.generativeai as genai
@@ -61,7 +61,7 @@ def generate_workout_plan(
     equipment: List[str],
     workout_duration_minutes: int = 45,
     num_weeks: int = 4,
-    api_key: str = None
+    api_key: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Generate personalized workout program

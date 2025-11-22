@@ -1,0 +1,74 @@
+{
+    "evaluation_config": {
+        "name": "Health Coach Evaluation Configuration",
+        "version": "1.0.0",
+        "description": "Configuration for evaluating the Health & Wellness Coach agent system"
+    },
+    "criteria": {
+        "accuracy": {
+            "weight": 0.4,
+            "description": "Correctness of agent routing and tool usage",
+            "thresholds": {
+                "excellent": 0.95,
+                "good": 0.85,
+                "acceptable": 0.75,
+                "poor": 0.60
+            }
+        },
+        "completeness": {
+            "weight": 0.3,
+            "description": "Response includes all expected information",
+            "thresholds": {
+                "excellent": 0.90,
+                "good": 0.80,
+                "acceptable": 0.70,
+                "poor": 0.60
+            }
+        },
+        "relevance": {
+            "weight": 0.2,
+            "description": "Response is relevant to the user's query",
+            "thresholds": {
+                "excellent": 0.95,
+                "good": 0.85,
+                "acceptable": 0.75,
+                "poor": 0.65
+            }
+        },
+        "response_time": {
+            "weight": 0.1,
+            "description": "Time taken to generate response",
+            "thresholds": {
+                "excellent": 2.0,
+                "good": 5.0,
+                "acceptable": 10.0,
+                "poor": 15.0
+            },
+            "unit": "seconds"
+        }
+    },
+    "agent_routing_accuracy": {
+        "description": "Verify correct agent is invoked for each domain",
+        "required_accuracy": 0.90
+    },
+    "tool_usage_accuracy": {
+        "description": "Verify correct tools are used",
+        "required_accuracy": 0.85
+    },
+    "regression_detection": {
+        "enabled": true,
+        "baseline_file": "tests/evaluation/baseline_results.json",
+        "tolerance": 0.05,
+        "description": "Detect performance regressions compared to baseline"
+    },
+    "reporting": {
+        "output_dir": "tests/evaluation/results",
+        "formats": [
+            "json",
+            "html",
+            "markdown"
+        ],
+        "include_traces": true,
+        "include_metrics": true
+    }
+}

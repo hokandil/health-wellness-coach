@@ -1,0 +1,127 @@
+{
+  "evaluation_name": "Health Coach Evaluation",
+  "description": "Automated evaluation test cases for the Health & Wellness Coach",
+  "version": "1.0.0",
+  "test_cases": [
+    {
+      "id": "nutrition_001",
+      "domain": "nutrition",
+      "input": "I'm a 30-year-old male, 180cm tall, 80kg. I want to lose weight. Calculate my daily calorie needs.",
+      "expected_agent": "nutrition_specialist",
+      "expected_tools": ["calculate_daily_calories"],
+      "success_criteria": {
+        "contains_calorie_number": true,
+        "mentions_deficit": true,
+        "provides_recommendation": true
+      }
+    },
+    {
+      "id": "nutrition_002",
+      "domain": "nutrition",
+      "input": "Create a 3-day meal plan for muscle gain. I'm 25, male, 75kg, very active.",
+      "expected_agent": "nutrition_specialist",
+      "expected_tools": ["calculate_daily_calories", "calculate_macro_targets", "generate_meal_plan"],
+      "success_criteria": {
+        "has_meal_plan": true,
+        "includes_macros": true,
+        "covers_multiple_days": true
+      }
+    },
+    {
+      "id": "fitness_001",
+      "domain": "fitness",
+      "input": "I'm a beginner and want to start working out. Create a workout plan for me.",
+      "expected_agent": "fitness_specialist",
+      "expected_tools": ["assess_fitness_level", "generate_workout_plan"],
+      "success_criteria": {
+        "has_workout_plan": true,
+        "appropriate_for_beginner": true,
+        "includes_exercises": true
+      }
+    },
+    {
+      "id": "fitness_002",
+      "domain": "fitness",
+      "input": "How many calories do I burn running for 30 minutes at moderate pace? I weigh 70kg.",
+      "expected_agent": "fitness_specialist",
+      "expected_tools": ["calculate_calories_burned"],
+      "success_criteria": {
+        "contains_calorie_number": true,
+        "mentions_activity": true
+      }
+    },
+    {
+      "id": "sleep_001",
+      "domain": "sleep",
+      "input": "I have trouble falling asleep. What can I do to improve my sleep quality?",
+      "expected_agent": "sleep_specialist",
+      "expected_tools": ["recommend_sleep_hygiene"],
+      "success_criteria": {
+        "provides_recommendations": true,
+        "mentions_sleep_hygiene": true,
+        "actionable_advice": true
+      }
+    },
+    {
+      "id": "sleep_002",
+      "domain": "sleep",
+      "input": "Analyze my sleep pattern. I sleep from 11 PM to 6 AM but wake up 3 times during the night.",
+      "expected_agent": "sleep_specialist",
+      "expected_tools": ["analyze_sleep_pattern"],
+      "success_criteria": {
+        "analyzes_pattern": true,
+        "identifies_issues": true,
+        "provides_solutions": true
+      }
+    },
+    {
+      "id": "wellness_001",
+      "domain": "mental_wellness",
+      "input": "I'm feeling very stressed lately. Can you help me with some relaxation techniques?",
+      "expected_agent": "wellness_specialist",
+      "expected_tools": ["assess_stress_level", "recommend_mindfulness_practice"],
+      "success_criteria": {
+        "acknowledges_stress": true,
+        "provides_techniques": true,
+        "empathetic_response": true
+      }
+    },
+    {
+      "id": "wellness_002",
+      "domain": "mental_wellness",
+      "input": "Create a daily relaxation routine for me to reduce anxiety.",
+      "expected_agent": "wellness_specialist",
+      "expected_tools": ["generate_relaxation_routine"],
+      "success_criteria": {
+        "has_routine": true,
+        "includes_timing": true,
+        "addresses_anxiety": true
+      }
+    },
+    {
+      "id": "multi_domain_001",
+      "domain": "multi",
+      "input": "I want to lose 10kg in 3 months. Help me with a complete plan including diet, exercise, and sleep.",
+      "expected_agents": ["nutrition_specialist", "fitness_specialist", "sleep_specialist"],
+      "success_criteria": {
+        "comprehensive_plan": true,
+        "covers_nutrition": true,
+        "covers_fitness": true,
+        "covers_sleep": true,
+        "realistic_timeline": true
+      }
+    },
+    {
+      "id": "general_001",
+      "domain": "general",
+      "input": "Hello! What can you help me with?",
+      "expected_agent": "coordinator",
+      "expected_tools": [],
+      "success_criteria": {
+        "friendly_greeting": true,
+        "lists_capabilities": true,
+        "invites_questions": true
+      }
+    }
+  ]
+}

@@ -1,10 +1,16 @@
 """
 Personal Health & Wellness Coach - Interactive Mode (Google ADK)
 
-Continuous conversation with your AI health coach.
+Continuous conversation with your AI health coach using ADK architecture.
 """
 
+# Fix for SSL permission error with antivirus software
+import os
+os.environ['SSLKEYLOGFILE'] = ''
+
 import sys
+import asyncio
+import uuid
 from pathlib import Path
 import logging
 
@@ -12,45 +18,37 @@ import logging
 project_root = Path(__file__).parent
 sys.path.append(str(project_root))
 
-from src.agents.coordinator import create_health_coordinator, execute_health_workflow
-from src.memory.memory_bank import MemoryBank
-from config.settings import Settings
+from src.core.runner_manager import runner_manager
+from src.agents.coordinator import coordinator_agent
+from src.config import config
 
 # Setup logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, config.LOG_LEVEL),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 
-def main():
+async def interactive_chat():
     """Interactive Health Coach - Continuous Conversation Mode"""
     print("\n" + "=" * 60)
     print("   🏥 PERSONAL HEALTH & WELLNESS COACH")
-    print("   AI Multi-Agent System (Powered by Bytez API)")
+    print("   AI Multi-Agent System (Powered by Google ADK)")
     print("=" * 60)
-    
-    # Check API key (Bytez or fallback to hardcoded)
-    bytez_key = Settings.GOOGLE_API_KEY or "e8ba2ca51505f0fe9fe84e880323cf09"
     
     print("\n🏥 Initializing your AI Health Coach...")
     print("-" * 60)
     
-    # Initialize coordinator (simplified for Bytez)
-    coordinator = create_health_coordinator()
-    
-    # Initialize memory bank
-    memory_bank = MemoryBank()
+    # Generate user and session IDs
+    user_id = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
     
     print("✅ Health Coach ready!")
-    print(f"   - AI Model: Gemini 2.5 Flash (via Bytez)")
-    print(f"   - Memory Bank: Active")
+    print(f"   - AI Model: {config.MODEL_NAME}")
+    print(f"   - Session Management: {'Persistent' if config.USE_PERSISTENT_SESSIONS else 'In-Memory'}")
+    print(f"   - Session ID: {session_id[:8]}...")
     print("=" * 60)
-    
-    # User profile (will be built during conversation)
-    user_profile = None
-    conversation_history = []
     
     print("\n💬 Welcome to your Personal Health & Wellness Coach!")
     print("\nI'm here to help you with:")
@@ -58,7 +56,7 @@ def main():
     print("  • Fitness programs and workout advice")
     print("  • Sleep quality and recovery optimization")
     print("  • Mental wellness and motivation")
-    print("\nType 'quit' to exit, 'profile' to see your profile, 'clear' to start fresh.")
+    print("\nType 'quit' to exit, 'history' to see conversation history, 'clear' to start fresh.")
     print("Let's get started!\n")
     
     while True:
@@ -74,79 +72,83 @@ def main():
                 print("\n👋 Thank you for using Health Coach! Stay healthy!")
                 break
             
-            if user_input.lower() == 'profile':
-                if user_profile:
-                    print(f"\n📋 Your Profile:")
-                    for key, value in user_profile.items():
-                        if key != 'preferences':
-                            print(f"   {key.replace('_', ' ').title()}: {value}")
+            if user_input.lower() == 'history':
+                history = await runner_manager.get_session_history(session_id, limit=10)
+                if history:
+                    print("\n📜 Recent Conversation History:")
+                    for msg in history[-10:]:
+                        role = msg.get('role', 'unknown')
+                        content = msg.get('content', '')
+                        print(f"   {role.upper()}: {content[:100]}...")
                 else:
-                    print("\n⚠️  No profile created yet. Share your health goals to build your profile!")
+                    print("\n⚠️  No conversation history yet.")
                 print()
                 continue
             
             if user_input.lower() == 'clear':
-                conversation_history = []
-                user_profile = None
-                print("\n🔄 Conversation cleared. Let's start fresh!\n")
+                await runner_manager.clear_session(session_id)
+                session_id = str(uuid.uuid4())  # New session
+                print(f"\n🔄 Conversation cleared. New session started: {session_id[:8]}...\n")
                 continue
             
             if user_input.lower() == 'help':
                 print("\n📚 Available Commands:")
                 print("   quit - Exit the program")
-                print("   profile - View your health profile")
+                print("   history - View recent conversation history")
                 print("   clear - Clear conversation history and start fresh")
+                print("   metrics - Show health metrics (if enabled)")
                 print("   help - Show this help message")
                 print("   Or just chat naturally with your health coach!\n")
                 continue
             
-            # Add to conversation history
-            conversation_history.append({"role": "user", "content": user_input})
+            if user_input.lower() == 'metrics':
+                metrics = runner_manager.get_metrics()
+                if metrics:
+                    print("\n📊 Health Metrics:")
+                    for plugin_name, plugin_metrics in metrics.items():
+                        print(f"\n   {plugin_name}:")
+                        for key, value in plugin_metrics.items():
+                            print(f"      {key}: {value}")
+                else:
+                    print("\n⚠️  No metrics available.")
+                print()
+                continue
             
-            # Build context with conversation history
-            context = {
-                "user_profile": user_profile,
-                "conversation_history": conversation_history[-5:]  # Last 5 exchanges
-            }
+            # Process query through coordinator agent
+            print("\n🤔 Coach: ", end="", flush=True)
             
-            # Process with coordinator
-            print("\n🤖 Coach: ", end="", flush=True)
-            result = execute_health_workflow(
-                coordinator=coordinator,
-                user_input=user_input,
-                context=context
-            )
-            
-            response = result['final_response']
-            print(response)
-            print()
-            
-            # Add to conversation history
-            conversation_history.append({"role": "assistant", "content": response})
-            
-            # Try to extract profile information from first few interactions
-            if not user_profile and len(conversation_history) <= 10:
-                # Simple profile extraction (can be enhanced)
-                if any(word in user_input.lower() for word in ['lose weight', 'gain muscle', 'get fit']):
-                    if not user_profile:
-                        user_profile = {}
-                    if 'lose weight' in user_input.lower():
-                        user_profile['primary_goal'] = 'lose_weight'
-                    elif 'gain muscle' in user_input.lower():
-                        user_profile['primary_goal'] = 'build_muscle'
-                    elif 'get fit' in user_input.lower():
-                        user_profile['primary_goal'] = 'general_fitness'
-                    
-                    # Save to memory bank
-                    memory_bank.update_user_profile("user_001", user_profile)
-            
+            try:
+                response = await runner_manager.run_query(
+                    agent=coordinator_agent,
+                    query=user_input,
+                    user_id=user_id,
+                    session_id=session_id
+                )
+                
+                print(response)
+                print()
+                
+            except Exception as e:
+                logger.error(f"Error processing query: {e}", exc_info=True)
+                print(f"\n❌ Sorry, I encountered an error: {str(e)}")
+                print("Please try rephrasing your question or type 'help' for assistance.\n")
+        
         except KeyboardInterrupt:
-            print("\n\n👋 Thank you for using Health Coach! Stay healthy!")
+            print("\n\n👋 Interrupted. Thank you for using Health Coach!")
             break
         except Exception as e:
-            logger.error(f"Error in conversation: {e}")
-            print(f"\n❌ Sorry, I encountered an error: {str(e)}")
-            print("Let's try again!\n")
+            logger.error(f"Unexpected error: {e}", exc_info=True)
+            print(f"\n❌ An unexpected error occurred: {str(e)}\n")
+
+
+def main():
+    """Main entry point"""
+    try:
+        asyncio.run(interactive_chat())
+    except Exception as e:
+        logger.error(f"Fatal error: {e}", exc_info=True)
+        print(f"\n❌ Fatal error: {str(e)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

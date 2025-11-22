@@ -79,8 +79,11 @@ def log_api_call(provider: str, model: str, prompt_tokens: int = 0, completion_t
         current_span.set_attribute("llm.prompt_tokens", prompt_tokens)
         current_span.set_attribute("llm.completion_tokens", completion_tokens)
 
+import functools
+
 def trace_tool(func):
     """Decorator to trace tool execution"""
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         with Tracer(f"Tool: {func.__name__}") as tracer:
             # Log arguments (be careful with sensitive data)
