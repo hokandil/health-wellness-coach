@@ -142,7 +142,7 @@ def analyze_meal_macros(meal_description: str, api_key: Optional[str] = None) ->
         Estimated macros for the meal
     """
     # Use ADK-compatible model initialization
-    from google.genai import Client
+    from google.adk.models import GoogleLLM
     
     api_key = api_key or os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -154,7 +154,8 @@ def analyze_meal_macros(meal_description: str, api_key: Optional[str] = None) ->
             "fat_grams": 0
         }
     
-    client = Client(api_key=api_key)
+    # Initialize ADK's GoogleLLM
+    llm = GoogleLLM(model="gemini-2.0-flash-exp", api_key=api_key)
     
     prompt = f"""Analyze the following meal and provide nutritional breakdown:
 
@@ -172,12 +173,10 @@ Be realistic with portion sizes. If not specified, assume standard portions.
 Return ONLY the JSON, no other text."""
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
-            contents=prompt
-        )
+        # ADK's generate_content returns a GenerateContentResponse
+        response = llm.generate_content(prompt)
         
-        # Extract JSON from response
+        # Extract text from response
         result_text = response.text.strip()
         if result_text.startswith("```json"):
             result_text = result_text[7:-3]
@@ -221,7 +220,7 @@ def generate_meal_plan(
     Returns:
         Complete meal plan with recipes
     """
-    from google.genai import Client
+    from google.adk.models import GoogleLLM
     
     api_key = api_key or os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -231,7 +230,7 @@ def generate_meal_plan(
         }
 
     
-    client = Client(api_key=api_key)
+    llm = GoogleLLM(model="gemini-2.0-flash-exp", api_key=api_key)
     
     dietary_restrictions = dietary_restrictions or []
     liked_foods = liked_foods or []
@@ -295,10 +294,7 @@ Return JSON with this structure:
 Return ONLY valid JSON."""
 
     try:
-        response = client.models.generate_content(
-            model='gemini-2.0-flash-exp',
-            contents=prompt
-        )
+        response = llm.generate_content(prompt)
         
         result_text = response.text.strip()
         if result_text.startswith("```json"):

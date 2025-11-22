@@ -1,6 +1,5 @@
 # AI Framework
 google-adk>=0.1.0
-bytez>=0.1.0
 
 # Data Processing
 pandas>=2.0.0

@@ -6,7 +6,6 @@ These tools are used by the Fitness Agent via Google ADK.
 from typing import Dict, List, Any, Optional
 import json
 import os
-import google.generativeai as genai
 from src.utils.observability import trace_tool
 
 
@@ -78,8 +77,16 @@ def generate_workout_plan(
     Returns:
         Complete workout program with progressive overload
     """
-    if api_key:
-        genai.configure(api_key=api_key)
+    from google.adk.models import GoogleLLM
+    
+    api_key = api_key or os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return {
+            "error": "No API key configured",
+            "weeks": []
+        }
+        
+    llm = GoogleLLM(model="gemini-2.0-flash-exp", api_key=api_key)
     
     goals_str = ", ".join(goals)
     equipment_str = ", ".join(equipment)
@@ -103,8 +110,7 @@ Return JSON with structure showing weeks, workouts per week, exercises with sets
 Return ONLY valid JSON."""
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash-exp')
-        response = model.generate_content(prompt)
+        response = llm.generate_content(prompt)
         
         result_text = response.text.strip()
         if result_text.startswith("```json"):
