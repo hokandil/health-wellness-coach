@@ -20,7 +20,9 @@ from google.adk.sessions import DatabaseSessionService, InMemorySessionService
 from google.adk.memory import InMemoryMemoryService
 from google.adk.plugins import LoggingPlugin
 from google.genai import types
-from google.genai.errors import ClientError
+# from google.adk.errors import ClientError # ADK might wrap or expose errors differently, let's check imports
+# Assuming ADK uses standard exceptions or we catch general Exception for now as ClientError might be internal
+
 
 from src.config import config
 
@@ -183,7 +185,7 @@ class RunnerManager:
                     new_message=content
                 ):
                     events.append(event)
-            except ClientError as e:
+            except Exception as e:
                 logger.error(f"API Error: {e}")
                 return f"I encountered an issue connecting to the AI service. Please check your API configuration. Error: {e}"
             except Exception as e:
