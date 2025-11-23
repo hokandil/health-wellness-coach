@@ -20,9 +20,7 @@ from google.adk.sessions import DatabaseSessionService, InMemorySessionService
 from google.adk.memory import InMemoryMemoryService
 from google.adk.plugins import LoggingPlugin
 from google.genai import types
-# from google.adk.errors import ClientError # ADK might wrap or expose errors differently, let's check imports
-# Assuming ADK uses standard exceptions or we catch general Exception for now as ClientError might be internal
-
+from google.genai.errors import ClientError
 
 from src.config import config
 
@@ -168,7 +166,7 @@ class RunnerManager:
             logger.debug(f"Query: {query}")
             
             # Execute the query using ADK Runner API
-            # Runner.run() expects: user_id, session_id, new_message (types.Content)
+            # Runner.run() expects: user_id, session_id, new_message (Content)
             # It returns a Generator of Events (not async)
             
             # Create Content object from query string
@@ -185,9 +183,6 @@ class RunnerManager:
                     new_message=content
                 ):
                     events.append(event)
-            except Exception as e:
-                logger.error(f"API Error: {e}")
-                return f"I encountered an issue connecting to the AI service. Please check your API configuration. Error: {e}"
             except Exception as e:
                 logger.error(f"Runtime Error: {e}")
                 return f"I encountered an unexpected error. Please try again later. Error: {e}"
