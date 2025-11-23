@@ -83,10 +83,7 @@ python main.py
 - ✅ **Google ADK Integration**: Uses `google-adk` for agent orchestration and tool management.
 
 ### Memory & Sessions
-- ✅ Memory Bank for user profiles
-- ✅ Progress tracking over time
-- ✅ Preference learning
-- ✅ Context-aware recommendations
+- ✅ Context-aware recommendations based on conversation history
 
 ### Observability & Evaluation
 - ✅ Logging system
@@ -95,8 +92,8 @@ python main.py
 
 ## 🎬 Demo Scenarios
 
-### Scenario 1: New User Onboarding
-Creates user profile and generates personalized health plan.
+### Scenario 1: Personalized Health Plan
+Generates personalized health plans based on user input (age, weight, goals).
 
 ### Scenario 2: Daily Check-In
 Multi-agent parallel analysis of sleep, nutrition, energy, and workout readiness.
