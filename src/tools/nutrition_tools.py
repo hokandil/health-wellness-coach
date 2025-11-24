@@ -142,7 +142,8 @@ def analyze_meal_macros(meal_description: str, api_key: Optional[str] = None) ->
         Estimated macros for the meal
     """
     # Use ADK-compatible model initialization
-    from google.adk.models import GoogleLLM
+    from google.adk.models import Gemini, LlmRequest
+    from google.genai.types import Content, Part
     
     api_key = api_key or os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -154,8 +155,8 @@ def analyze_meal_macros(meal_description: str, api_key: Optional[str] = None) ->
             "fat_grams": 0
         }
     
-    # Initialize ADK's GoogleLLM
-    llm = GoogleLLM(model="gemini-2.0-flash-exp", api_key=api_key)
+    # Initialize ADK's Gemini
+    llm = Gemini(model="gemini-2.5-flash", api_key=api_key)
     
     prompt = f"""Analyze the following meal and provide nutritional breakdown:
 
@@ -172,19 +173,44 @@ Provide a JSON response with:
 Be realistic with portion sizes. If not specified, assume standard portions.
 Return ONLY the JSON, no other text."""
 
+
     try:
-        # ADK's generate_content returns a GenerateContentResponse
-        response = llm.generate_content(prompt)
+        # ADK's generate_content_async returns an async generator
+        request = LlmRequest(
+            model="gemini-2.5-flash",
+            contents=[Content(parts=[Part(text=prompt)])]
+        )
+        full_response_text = ""
+        async for chunk in llm.generate_content_async(request):
+            # Try different ways to get text from chunk
+            if hasattr(chunk, 'text') and chunk.text:
+                full_response_text += chunk.text
+            elif hasattr(chunk, 'candidates') and chunk.candidates:
+                for candidate in chunk.candidates:
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts'):
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    full_response_text += part.text
         
         # Extract text from response
-        result_text = response.text.strip()
+        result_text = full_response_text.strip()
         if result_text.startswith("```json"):
             result_text = result_text[7:-3]
         elif result_text.startswith("```"):
             result_text = result_text[3:-3]
         
+        result_text = result_text.strip()
         result = json.loads(result_text)
         return result
+    except json.JSONDecodeError as e:
+        return {
+            "error": f"JSON parsing error: {str(e)}",
+            "total_calories": 0,
+            "protein_grams": 0,
+            "carbs_grams": 0,
+            "fat_grams": 0
+        }
     except Exception as e:
         return {
             "error": f"Could not parse nutrition data: {str(e)}",
@@ -196,7 +222,7 @@ Return ONLY the JSON, no other text."""
 
 
 @trace_tool
-def generate_meal_plan(
+async def generate_meal_plan(
     target_calories: int,
     macro_targets: Dict[str, Any],
     dietary_restrictions: Optional[List[str]] = None,
@@ -220,7 +246,8 @@ def generate_meal_plan(
     Returns:
         Complete meal plan with recipes
     """
-    from google.adk.models import GoogleLLM
+    from google.adk.models import Gemini, LlmRequest
+    from google.genai.types import Content, Part
     
     api_key = api_key or os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -230,7 +257,7 @@ def generate_meal_plan(
         }
 
     
-    llm = GoogleLLM(model="gemini-2.0-flash-exp", api_key=api_key)
+    llm = Gemini(model="gemini-2.5-flash", api_key=api_key)
     
     dietary_restrictions = dietary_restrictions or []
     liked_foods = liked_foods or []
@@ -293,16 +320,38 @@ Return JSON with this structure:
 
 Return ONLY valid JSON."""
 
+
     try:
-        response = llm.generate_content(prompt)
+        request = LlmRequest(
+            model="gemini-2.5-flash",
+            contents=[Content(parts=[Part(text=prompt)])]
+        )
+        full_response_text = ""
+        async for chunk in llm.generate_content_async(request):
+            # Try different ways to get text from chunk
+            if hasattr(chunk, 'text') and chunk.text:
+                full_response_text += chunk.text
+            elif hasattr(chunk, 'candidates') and chunk.candidates:
+                for candidate in chunk.candidates:
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts'):
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    full_response_text += part.text
         
-        result_text = response.text.strip()
+        result_text = full_response_text.strip()
         if result_text.startswith("```json"):
             result_text = result_text[7:-3]
         elif result_text.startswith("```"):
             result_text = result_text[3:-3]
         
+        result_text = result_text.strip()
         return json.loads(result_text)
+    except json.JSONDecodeError as e:
+        return {
+            "error": f"JSON parsing error: {str(e)}",
+            "days": []
+        }
     except Exception as e:
         return {
             "error": f"Could not generate meal plan: {str(e)}",
