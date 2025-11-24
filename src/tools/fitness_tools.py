@@ -53,7 +53,7 @@ def assess_fitness_level(
 
 
 @trace_tool
-def generate_workout_plan(
+async def generate_workout_plan(
     fitness_level: str,
     goals: List[str],
     days_per_week: int,
@@ -77,7 +77,8 @@ def generate_workout_plan(
     Returns:
         Complete workout program with progressive overload
     """
-    from google.adk.models import GoogleLLM
+    from google.adk.models import Gemini, LlmRequest
+    from google.genai.types import Content, Part
     
     api_key = api_key or os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -86,7 +87,7 @@ def generate_workout_plan(
             "weeks": []
         }
         
-    llm = GoogleLLM(model="gemini-2.0-flash-exp", api_key=api_key)
+    llm = Gemini(model="gemini-2.5-flash", api_key=api_key)
     
     goals_str = ", ".join(goals)
     equipment_str = ", ".join(equipment)
@@ -110,15 +111,51 @@ Return JSON with structure showing weeks, workouts per week, exercises with sets
 Return ONLY valid JSON."""
 
     try:
-        response = llm.generate_content(prompt)
+        request = LlmRequest(
+            model="gemini-2.5-flash",
+            contents=[Content(parts=[Part(text=prompt)])]
+        )
+        full_response_text = ""
+        chunk_count = 0
+        async for chunk in llm.generate_content_async(request):
+            chunk_count += 1
+            # Try different ways to get text from chunk
+            if hasattr(chunk, 'text') and chunk.text:
+                full_response_text += chunk.text
+            elif hasattr(chunk, 'candidates') and chunk.candidates:
+                for candidate in chunk.candidates:
+                    if hasattr(candidate, 'content') and candidate.content:
+                        if hasattr(candidate.content, 'parts'):
+                            for part in candidate.content.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    full_response_text += part.text
         
-        result_text = response.text.strip()
+        if not full_response_text:
+            return {
+                "error": f"No text received from API (received {chunk_count} chunks)",
+                "weeks": []
+            }
+        
+        result_text = full_response_text.strip()
         if result_text.startswith("```json"):
             result_text = result_text[7:-3]
         elif result_text.startswith("```"):
             result_text = result_text[3:-3]
         
+        result_text = result_text.strip()
+        
+        if not result_text:
+            return {
+                "error": "Empty response after processing",
+                "weeks": []
+            }
+        
         return json.loads(result_text)
+    except json.JSONDecodeError as e:
+        return {
+            "error": f"JSON parsing error: {str(e)}. Response preview: {full_response_text[:200] if full_response_text else 'empty'}",
+            "weeks": []
+        }
     except Exception as e:
         return {
             "error": f"Could not generate workout plan: {str(e)}",

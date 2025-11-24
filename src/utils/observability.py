@@ -27,17 +27,9 @@ logging.basicConfig(
 
 logger = logging.getLogger("Observability")
 
-# Configure OpenTelemetry
-resource = Resource.create({"service.name": "health-wellness-coach"})
-trace.set_tracer_provider(TracerProvider(resource=resource))
+# OpenTelemetry is configured in src/observability/telemetry.py
+# and initialized in main.py
 tracer = trace.get_tracer(__name__)
-
-# Configure OTLP Exporter (Jaeger)
-# Use JAEGER_ENDPOINT from env or default to localhost
-jaeger_endpoint = os.getenv("JAEGER_ENDPOINT", "http://localhost:4317")
-otlp_exporter = OTLPSpanExporter(endpoint=jaeger_endpoint, insecure=True)
-span_processor = BatchSpanProcessor(otlp_exporter)
-trace.get_tracer_provider().add_span_processor(span_processor)
 
 class Tracer:
     """OpenTelemetry wrapper for easy tracing"""
@@ -81,18 +73,35 @@ def log_api_call(provider: str, model: str, prompt_tokens: int = 0, completion_t
 
 import functools
 
+import functools
+import inspect
+import asyncio
+
 def trace_tool(func):
-    """Decorator to trace tool execution"""
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        with Tracer(f"Tool: {func.__name__}") as tracer:
-            # Log arguments (be careful with sensitive data)
-            tracer.log_event("tool_start", {"args": str(args), "kwargs": str(kwargs)})
-            try:
-                result = func(*args, **kwargs)
-                tracer.log_event("tool_end", {"result": str(result)[:100] + "..." if len(str(result)) > 100 else str(result)})
-                return result
-            except Exception as e:
-                tracer.log_event("tool_error", {"error": str(e)})
-                raise e
-    return wrapper
+    """Decorator to trace tool execution (sync and async)"""
+    if inspect.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            with Tracer(f"Tool: {func.__name__}") as tracer:
+                tracer.log_event("tool_start", {"args": str(args), "kwargs": str(kwargs)})
+                try:
+                    result = await func(*args, **kwargs)
+                    tracer.log_event("tool_end", {"result": str(result)[:100] + "..." if len(str(result)) > 100 else str(result)})
+                    return result
+                except Exception as e:
+                    tracer.log_event("tool_error", {"error": str(e)})
+                    raise e
+        return wrapper
+    else:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with Tracer(f"Tool: {func.__name__}") as tracer:
+                tracer.log_event("tool_start", {"args": str(args), "kwargs": str(kwargs)})
+                try:
+                    result = func(*args, **kwargs)
+                    tracer.log_event("tool_end", {"result": str(result)[:100] + "..." if len(str(result)) > 100 else str(result)})
+                    return result
+                except Exception as e:
+                    tracer.log_event("tool_error", {"error": str(e)})
+                    raise e
+        return wrapper
