@@ -182,16 +182,12 @@ Return ONLY the JSON, no other text."""
         )
         full_response_text = ""
         async for chunk in llm.generate_content_async(request):
-            # Try different ways to get text from chunk
-            if hasattr(chunk, 'text') and chunk.text:
-                full_response_text += chunk.text
-            elif hasattr(chunk, 'candidates') and chunk.candidates:
-                for candidate in chunk.candidates:
-                    if hasattr(candidate, 'content') and candidate.content:
-                        if hasattr(candidate.content, 'parts'):
-                            for part in candidate.content.parts:
-                                if hasattr(part, 'text') and part.text:
-                                    full_response_text += part.text
+            # LlmResponse has .content.parts[].text structure
+            if hasattr(chunk, 'content') and chunk.content:
+                if hasattr(chunk.content, 'parts') and chunk.content.parts:
+                    for part in chunk.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            full_response_text += part.text
         
         # Extract text from response
         result_text = full_response_text.strip()
@@ -328,16 +324,12 @@ Return ONLY valid JSON."""
         )
         full_response_text = ""
         async for chunk in llm.generate_content_async(request):
-            # Try different ways to get text from chunk
-            if hasattr(chunk, 'text') and chunk.text:
-                full_response_text += chunk.text
-            elif hasattr(chunk, 'candidates') and chunk.candidates:
-                for candidate in chunk.candidates:
-                    if hasattr(candidate, 'content') and candidate.content:
-                        if hasattr(candidate.content, 'parts'):
-                            for part in candidate.content.parts:
-                                if hasattr(part, 'text') and part.text:
-                                    full_response_text += part.text
+            # LlmResponse has .content.parts[].text structure
+            if hasattr(chunk, 'content') and chunk.content:
+                if hasattr(chunk.content, 'parts') and chunk.content.parts:
+                    for part in chunk.content.parts:
+                        if hasattr(part, 'text') and part.text:
+                            full_response_text += part.text
         
         result_text = full_response_text.strip()
         if result_text.startswith("```json"):
