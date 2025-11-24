@@ -130,7 +130,7 @@ def calculate_macro_targets(
 
 
 @trace_tool
-def analyze_meal_macros(meal_description: str, api_key: Optional[str] = None) -> Dict[str, Any]:
+async def analyze_meal_macros(meal_description: str, api_key: Optional[str] = None) -> Dict[str, Any]:
     """
     Analyze macronutrients in a meal description using Gemini
     
